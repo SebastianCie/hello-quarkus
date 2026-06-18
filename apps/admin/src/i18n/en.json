@@ -14,10 +14,29 @@
     "athletes": "Athletes",
     "settings": "Settings"
   },
+  "register": {
+    "title": "Create Account",
+    "subtitle": "Create your account and then set up your climbing gym or club.",
+    "username": "Username",
+    "usernamePlaceholder": "e.g. john.doe",
+    "email": "Email",
+    "emailPlaceholder": "john@example.com",
+    "password": "Password",
+    "confirmPassword": "Confirm Password",
+    "submit": "Create Account",
+    "alreadyHaveAccount": "Already have an account?",
+    "login": "Log in",
+    "successTitle": "Account created!",
+    "successMessage": "Your account has been successfully created. You can now set up your organization.",
+    "continue": "Continue",
+    "passwordMismatch": "Passwords do not match.",
+    "passwordTooShort": "Password must be at least 8 characters long.",
+    "errorMessage": "An error occurred while creating the account."
+  },
   "org": {
     "register": {
-      "title": "Register Organization",
-      "subtitle": "Register your climbing gym or club on the Beta Battle platform.",
+      "title": "Set Up Organization",
+      "subtitle": "Set up your climbing gym or club on the Beta Battle platform.",
       "orgSection": "Organization",
       "locationSection": "First Location",
       "name": "Organization Name",

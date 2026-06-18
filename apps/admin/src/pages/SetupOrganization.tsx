@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useMutation } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
 import { api } from '@/api/client'
 
 type FormData = {
@@ -35,11 +36,8 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
       <span style={{
-        color: '#6cf0c2',
-        fontWeight: 700,
-        fontSize: 11,
-        letterSpacing: '0.12em',
-        textTransform: 'uppercase',
+        color: '#6cf0c2', fontWeight: 700, fontSize: 11,
+        letterSpacing: '0.12em', textTransform: 'uppercase',
       }}>
         {children}
       </span>
@@ -93,18 +91,18 @@ function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
   )
 }
 
-export function RegisterOrganization() {
+export function SetupOrganization() {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   const [form, setForm] = useState<FormData>({
     orgName: '', slug: '', email: '', logoUrl: '',
     locationName: '', city: '', address: '',
   })
   const [slugManual, setSlugManual] = useState(false)
-  const [done, setDone] = useState(false)
 
   const mutation = useMutation({
     mutationFn: (data: FormData) =>
-      api.organizations.register({
+      api.organizations.setup({
         name: data.orgName,
         slug: data.slug,
         contactEmail: data.email || null,
@@ -113,7 +111,10 @@ export function RegisterOrganization() {
         locationCity: data.city || null,
         locationAddress: data.address || null,
       }),
-    onSuccess: () => setDone(true),
+    onSuccess: () => {
+      localStorage.setItem('bb_org_setup_done', '1')
+      navigate('/dashboard')
+    },
   })
 
   function set(field: keyof FormData, value: string) {
@@ -127,35 +128,6 @@ export function RegisterOrganization() {
     })
   }
 
-  if (done) {
-    return (
-      <div style={{
-        minHeight: '100vh', display: 'flex', alignItems: 'center',
-        justifyContent: 'center',
-        background: 'linear-gradient(138deg, #020231 53%, rgba(130,4,255,0.35) 100%)',
-        backgroundAttachment: 'fixed',
-        padding: 24,
-      }}>
-        <div style={{
-          background: '#121a2b',
-          border: '1px solid rgba(108,240,194,0.3)',
-          borderRadius: 20,
-          padding: 48,
-          maxWidth: 440,
-          width: '100%',
-          textAlign: 'center',
-          boxShadow: '0 0 0 1px rgba(108,240,194,0.1), 0 20px 50px rgba(0,0,0,0.4)',
-        }}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>🎉</div>
-          <h2 style={{ color: '#6cf0c2', margin: '0 0 8px', fontSize: 22 }}>
-            {t('org.register.successTitle')}
-          </h2>
-          <p style={{ color: '#a6b0c3', margin: 0 }}>{t('org.register.successMessage')}</p>
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div style={{
       minHeight: '100vh',
@@ -164,7 +136,6 @@ export function RegisterOrganization() {
       display: 'flex',
       flexDirection: 'column',
     }}>
-      {/* Header */}
       <header style={{
         position: 'sticky', top: 0,
         backdropFilter: 'blur(10px)',
@@ -179,30 +150,16 @@ export function RegisterOrganization() {
           <BetaBattleLogo />
           <span style={{ fontWeight: 700, color: '#e8ecf3', fontSize: 16 }}>Beta Battle</span>
           <span style={{
-            marginLeft: 8,
-            background: '#16443a',
-            color: '#6cf0c2',
-            fontSize: 11,
-            fontWeight: 600,
-            padding: '2px 8px',
-            borderRadius: 999,
-            letterSpacing: '0.06em',
+            marginLeft: 8, background: '#16443a', color: '#6cf0c2', fontSize: 11,
+            fontWeight: 600, padding: '2px 8px', borderRadius: 999, letterSpacing: '0.06em',
           }}>Admin</span>
         </div>
       </header>
 
-      {/* Hero strip */}
-      <div style={{
-        padding: '48px 24px 40px',
-        textAlign: 'center',
-      }}>
+      <div style={{ padding: '48px 24px 40px', textAlign: 'center' }}>
         <p style={{
-          color: '#6cf0c2',
-          fontWeight: 700,
-          fontSize: 11,
-          letterSpacing: '0.15em',
-          textTransform: 'uppercase',
-          margin: '0 0 10px',
+          color: '#6cf0c2', fontWeight: 700, fontSize: 11,
+          letterSpacing: '0.15em', textTransform: 'uppercase', margin: '0 0 10px',
         }}>
           Beta Battle Platform
         </p>
@@ -214,23 +171,12 @@ export function RegisterOrganization() {
         </p>
       </div>
 
-      {/* Form */}
-      <div style={{
-        flex: 1,
-        maxWidth: 600, width: '100%',
-        margin: '0 auto',
-        padding: '40px 24px 64px',
-      }}>
+      <div style={{ flex: 1, maxWidth: 600, width: '100%', margin: '0 auto', padding: '40px 24px 64px' }}>
         <form onSubmit={(e) => { e.preventDefault(); mutation.mutate(form) }}>
 
-          {/* Organisation */}
           <div style={{
-            background: '#121a2b',
-            border: '1px solid rgba(255,255,255,0.1)',
-            borderRadius: 16,
-            padding: 24,
-            marginBottom: 16,
-            boxShadow: '0 10px 30px rgba(0,0,0,0.25)',
+            background: '#121a2b', border: '1px solid rgba(255,255,255,0.1)',
+            borderRadius: 16, padding: 24, marginBottom: 16, boxShadow: '0 10px 30px rgba(0,0,0,0.25)',
           }}>
             <SectionLabel>{t('org.register.orgSection')}</SectionLabel>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -275,14 +221,9 @@ export function RegisterOrganization() {
             </div>
           </div>
 
-          {/* Erster Standort */}
           <div style={{
-            background: '#121a2b',
-            border: '1px solid rgba(255,255,255,0.1)',
-            borderRadius: 16,
-            padding: 24,
-            marginBottom: 24,
-            boxShadow: '0 10px 30px rgba(0,0,0,0.25)',
+            background: '#121a2b', border: '1px solid rgba(255,255,255,0.1)',
+            borderRadius: 16, padding: 24, marginBottom: 24, boxShadow: '0 10px 30px rgba(0,0,0,0.25)',
           }}>
             <SectionLabel>{t('org.register.locationSection')}</SectionLabel>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -317,30 +258,21 @@ export function RegisterOrganization() {
             </div>
           </div>
 
-          {/* Error */}
           {mutation.isError && (
             <p style={{ color: '#ff5d6b', fontSize: 13, marginBottom: 16 }}>
               {t('org.register.errorMessage')}
             </p>
           )}
 
-          {/* Submit */}
           <button
             type="submit"
             disabled={mutation.isPending}
             style={{
-              width: '100%',
-              background: '#ffa222',
-              color: '#000',
-              border: 'none',
-              borderRadius: 10,
-              padding: '13px 20px',
-              fontSize: 15,
-              fontWeight: 700,
+              width: '100%', background: '#ffa222', color: '#000', border: 'none',
+              borderRadius: 10, padding: '13px 20px', fontSize: 15, fontWeight: 700,
               cursor: mutation.isPending ? 'not-allowed' : 'pointer',
               opacity: mutation.isPending ? 0.6 : 1,
-              transition: 'opacity 0.15s, transform 0.06s',
-              fontFamily: 'inherit',
+              transition: 'opacity 0.15s, transform 0.06s', fontFamily: 'inherit',
             }}
             onMouseDown={(e) => (e.currentTarget.style.transform = 'translateY(1px)')}
             onMouseUp={(e) => (e.currentTarget.style.transform = '')}

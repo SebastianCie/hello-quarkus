@@ -12,25 +12,17 @@ export function useAuth() {
   return useContext(AuthContext)
 }
 
-export function getAuthHeader(): Record<string, string> {
-  const auth = useAuth()
-  if (auth.status === 'authenticated') {
-    return { Authorization: `Bearer ${auth.token}` }
-  }
-  return {}
-}
-
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [auth, setAuth] = useState<AuthState>({ status: 'loading' })
 
   useEffect(() => {
     if (DEV_MODE) {
-      // Local dev: skip Keycloak, treat as anonymous (API allows unauthenticated in dev)
       setAuth({ status: 'authenticated', token: '', userId: 'dev-user', name: 'Dev User' })
       return
     }
 
-    keycloak!.init({ onLoad: 'login-required', checkLoginIframe: false })
+    // check-sso: detects existing session without forcing a redirect for unauthenticated users
+    keycloak!.init({ onLoad: 'check-sso', checkLoginIframe: false })
       .then((authenticated) => {
         if (authenticated) {
           setAuth({
@@ -39,13 +31,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             userId: keycloak!.subject!,
             name: (keycloak!.tokenParsed as Record<string, string>)?.preferred_username ?? '',
           })
-
-          // Refresh token before it expires
           setInterval(() => {
-            keycloak!.updateToken(30).catch(() => keycloak!.logout())
+            keycloak!.updateToken(30)
+              .then((refreshed) => {
+                if (refreshed) {
+                  setAuth((prev) => prev.status === 'authenticated'
+                    ? { ...prev, token: keycloak!.token! }
+                    : prev)
+                }
+              })
+              .catch(() => keycloak!.logout())
           }, 30_000)
         } else {
-          keycloak!.login()
+          setAuth({ status: 'unauthenticated' })
         }
       })
       .catch(() => setAuth({ status: 'unauthenticated' }))

@@ -20,7 +20,7 @@ public class OrganizationResource {
     @Inject
     SecurityIdentity identity;
 
-    public record RegisterRequest(
+    public record SetupRequest(
         String name, String slug, String contactEmail, String logoUrl,
         String locationName, String locationCity, String locationAddress
     ) {}
@@ -38,13 +38,13 @@ public class OrganizationResource {
     }
 
     /**
-     * Self-service registration: creates org + first location + org_user(SUPERADMIN) atomically.
-     * The authenticated user's sub becomes the superadmin of the new organization.
+     * Called after login: creates org + first location + org_user(SUPERADMIN)
+     * linked to the currently authenticated user.
      */
     @POST
-    @Path("/register")
+    @Path("/setup")
     @Transactional
-    public Response register(RegisterRequest req) {
+    public Response setup(SetupRequest req) {
         Organization org = new Organization();
         org.name = req.name();
         org.slug = req.slug();
@@ -59,8 +59,6 @@ public class OrganizationResource {
         location.address = req.locationAddress();
         location.persist();
 
-        // Link the authenticated user as org superadmin.
-        // In dev mode (identity is anonymous), skip user linking.
         if (!identity.isAnonymous()) {
             OrgUser orgUser = new OrgUser();
             orgUser.orgId = org.id;

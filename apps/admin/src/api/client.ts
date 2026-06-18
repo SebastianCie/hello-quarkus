@@ -13,7 +13,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     headers: { 'Content-Type': 'application/json', ...authHeader(), ...init?.headers },
     ...init,
   })
-  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
+  if (!res.ok) {
+    const text = await res.text().catch(() => res.statusText)
+    throw new Error(`${res.status}: ${text}`)
+  }
   return res.json() as Promise<T>
 }
 
@@ -25,7 +28,7 @@ export type Organization = {
   logoUrl: string | null
 }
 
-export type RegisterRequest = {
+export type SetupRequest = {
   name: string
   slug: string
   contactEmail: string | null
@@ -35,9 +38,19 @@ export type RegisterRequest = {
   locationAddress: string | null
 }
 
+export type AccountRegisterRequest = {
+  username: string
+  email?: string
+  password: string
+}
+
 export const api = {
+  account: {
+    register: (data: AccountRegisterRequest) =>
+      request<{ message: string }>('/account/register', { method: 'POST', body: JSON.stringify(data) }),
+  },
   organizations: {
-    register: (data: RegisterRequest) =>
-      request<Organization>('/organizations/register', { method: 'POST', body: JSON.stringify(data) }),
+    setup: (data: SetupRequest) =>
+      request<Organization>('/organizations/setup', { method: 'POST', body: JSON.stringify(data) }),
   },
 }
