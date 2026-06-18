@@ -6,6 +6,7 @@ import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Path("/api/v1/competitions")
@@ -28,9 +29,18 @@ public class CompetitionResource {
         return entity != null ? Response.ok(entity).build() : Response.status(404).build();
     }
 
+    private Response validateDates(Competition data) {
+        if (data.startDate != null && data.endDate != null && !data.startDate.isBefore(data.endDate)) {
+            return Response.status(400).entity(Map.of("message", "Startdatum muss vor dem Enddatum liegen.")).build();
+        }
+        return null;
+    }
+
     @POST
     @Transactional
     public Response create(Competition entity) {
+        Response err = validateDates(entity);
+        if (err != null) return err;
         entity.id = null;
         entity.persist();
         return Response.status(201).entity(entity).build();
@@ -40,6 +50,8 @@ public class CompetitionResource {
     @Path("/{id}")
     @Transactional
     public Response update(@PathParam("id") UUID id, Competition data) {
+        Response err = validateDates(data);
+        if (err != null) return err;
         Competition entity = Competition.findById(id);
         if (entity == null) return Response.status(404).build();
         entity.name = data.name;

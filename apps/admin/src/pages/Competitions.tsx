@@ -85,6 +85,9 @@ export function Competitions() {
 
   const save = useMutation({
     mutationFn: () => {
+      if (form.startDate && form.endDate && new Date(form.startDate) >= new Date(form.endDate)) {
+        return Promise.reject(new Error('Startdatum muss vor dem Enddatum liegen.'))
+      }
       const payload = {
         orgId: org!.id,
         name: form.name, slug: form.slug, discipline: form.discipline,
