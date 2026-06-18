@@ -26,7 +26,10 @@ public class KeycloakAdminService {
     @Inject
     ObjectMapper mapper;
 
-    @ConfigProperty(name = "beta-battle.keycloak.url", defaultValue = "")
+    @ConfigProperty(name = "beta-battle.keycloak.enabled", defaultValue = "true")
+    boolean keycloakEnabled;
+
+    @ConfigProperty(name = "beta-battle.keycloak.url", defaultValue = "https://keycloak.heim.apps")
     String keycloakUrl;
 
     @ConfigProperty(name = "beta-battle.keycloak.realm", defaultValue = "heim")
@@ -35,11 +38,11 @@ public class KeycloakAdminService {
     @ConfigProperty(name = "beta-battle.keycloak.client-id", defaultValue = "beta-battle")
     String clientId;
 
-    @ConfigProperty(name = "beta-battle.keycloak.client-secret", defaultValue = "")
+    @ConfigProperty(name = "beta-battle.keycloak.client-secret", defaultValue = "changeme")
     String clientSecret;
 
     public boolean isEnabled() {
-        return !keycloakUrl.isBlank() && !clientSecret.isBlank();
+        return keycloakEnabled;
     }
 
     /**
