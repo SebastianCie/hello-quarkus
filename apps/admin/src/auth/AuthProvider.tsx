@@ -17,7 +17,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (DEV_MODE) {
-      setAuth({ status: 'authenticated', token: '', userId: 'dev-user', name: 'Dev User' })
+      // Dev-User UUID entspricht dem Seed in db/dev/V100__dev_seed.sql
+      localStorage.setItem('bb_org_setup_done', '1')
+      setAuth({ status: 'authenticated', token: '', userId: '00000000-0000-0000-0000-000000000001', name: 'Dev User' })
       return
     }
 

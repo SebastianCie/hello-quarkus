@@ -9,7 +9,9 @@ import jakarta.transaction.Transactional;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Path("/api/v1/organizations")
@@ -19,6 +21,9 @@ public class OrganizationResource {
 
     @Inject
     SecurityIdentity identity;
+
+    @ConfigProperty(name = "beta-battle.dev-user-id", defaultValue = "")
+    String devUserId;
 
     public record SetupRequest(
         String name, String slug, String contactEmail, String logoUrl,
@@ -59,15 +64,27 @@ public class OrganizationResource {
         location.address = req.locationAddress();
         location.persist();
 
-        if (!identity.isAnonymous()) {
-            OrgUser orgUser = new OrgUser();
-            orgUser.orgId = org.id;
-            orgUser.userId = UUID.fromString(identity.getPrincipal().getName());
-            orgUser.role = "SUPERADMIN";
-            orgUser.persist();
+        Optional<UUID> userId = resolveUserId();
+        if (userId.isEmpty()) {
+            return Response.status(401).entity("Nicht authentifiziert").build();
         }
+        OrgUser orgUser = new OrgUser();
+        orgUser.orgId = org.id;
+        orgUser.userId = userId.get();
+        orgUser.role = "SUPERADMIN";
+        orgUser.persist();
 
         return Response.status(201).entity(org).build();
+    }
+
+    private Optional<UUID> resolveUserId() {
+        if (!identity.isAnonymous()) {
+            return Optional.of(UUID.fromString(identity.getPrincipal().getName()));
+        }
+        if (!devUserId.isBlank()) {
+            return Optional.of(UUID.fromString(devUserId));
+        }
+        return Optional.empty();
     }
 
     @POST
