@@ -2,7 +2,6 @@ package de.heim.apps.entity;
 
 import io.quarkus.hibernate.orm.panache.PanacheEntityBase;
 import jakarta.persistence.*;
-import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
@@ -32,8 +31,11 @@ public class Competition extends PanacheEntityBase {
     @Column(nullable = false)
     public String status = "DRAFT";
 
-    @Column(name = "event_date")
-    public LocalDate eventDate;
+    @Column(name = "start_date")
+    public OffsetDateTime startDate;
+
+    @Column(name = "end_date")
+    public OffsetDateTime endDate;
 
     public String venue;
 

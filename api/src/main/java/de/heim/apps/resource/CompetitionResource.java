@@ -47,7 +47,8 @@ public class CompetitionResource {
         entity.discipline = data.discipline;
         entity.format = data.format;
         entity.status = data.status;
-        entity.eventDate = data.eventDate;
+        entity.startDate = data.startDate;
+        entity.endDate = data.endDate;
         entity.venue = data.venue;
         entity.locationId = data.locationId;
         entity.selfRegistration = data.selfRegistration;

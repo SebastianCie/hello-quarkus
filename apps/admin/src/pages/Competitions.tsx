@@ -30,13 +30,13 @@ const STATUSES = [
 
 type CompForm = {
   name: string; slug: string; discipline: string; format: string; status: string
-  eventDate: string; venue: string; locationId: string
+  startDate: string; endDate: string; venue: string; locationId: string
   selfRegistration: boolean; registrationOpensAt: string; registrationClosesAt: string
 }
 
 const emptyForm = (): CompForm => ({
   name: '', slug: '', discipline: 'BOULDERN', format: 'FLASH', status: 'DRAFT',
-  eventDate: '', venue: '', locationId: '', selfRegistration: false,
+  startDate: '', endDate: '', venue: '', locationId: '', selfRegistration: false,
   registrationOpensAt: '', registrationClosesAt: '',
 })
 
@@ -64,7 +64,9 @@ export function Competitions() {
   function openEdit(comp: Competition) {
     setForm({
       name: comp.name, slug: comp.slug, discipline: comp.discipline, format: comp.format, status: comp.status,
-      eventDate: comp.eventDate ?? '', venue: comp.venue ?? '', locationId: comp.locationId ?? '',
+      startDate: comp.startDate?.slice(0, 16) ?? '',
+      endDate: comp.endDate?.slice(0, 16) ?? '',
+      venue: comp.venue ?? '', locationId: comp.locationId ?? '',
       selfRegistration: comp.selfRegistration,
       registrationOpensAt: comp.registrationOpensAt?.slice(0, 16) ?? '',
       registrationClosesAt: comp.registrationClosesAt?.slice(0, 16) ?? '',
@@ -87,7 +89,8 @@ export function Competitions() {
         orgId: org!.id,
         name: form.name, slug: form.slug, discipline: form.discipline,
         format: form.format, status: form.status,
-        eventDate: form.eventDate || null,
+        startDate: form.startDate || null,
+        endDate: form.endDate || null,
         venue: form.venue || null,
         locationId: form.locationId || null,
         selfRegistration: form.selfRegistration,
@@ -146,7 +149,12 @@ export function Competitions() {
                 <div style={{ fontSize: 12, color: '#a6b0c3', display: 'flex', gap: 12 }}>
                   <span>{DISCIPLINES.find(d => d.value === comp.discipline)?.label ?? comp.discipline}</span>
                   <span>{FORMATS.find(f => f.value === comp.format)?.label ?? comp.format}</span>
-                  {comp.eventDate && <span>{new Date(comp.eventDate).toLocaleDateString('de-DE')}</span>}
+                  {comp.startDate && (
+                    <span>
+                      {new Date(comp.startDate).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' })}
+                      {comp.endDate && ` – ${new Date(comp.endDate).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' })}`}
+                    </span>
+                  )}
                   {locationName(comp.locationId) && <span>{locationName(comp.locationId)}</span>}
                 </div>
               </div>
@@ -194,14 +202,18 @@ export function Competitions() {
               </Field>
             </div>
 
+            <Field label="Status">
+              <Select value={form.status} onChange={e => set('status', e.target.value)}>
+                {STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+              </Select>
+            </Field>
+
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <Field label="Status">
-                <Select value={form.status} onChange={e => set('status', e.target.value)}>
-                  {STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-                </Select>
+              <Field label="Start (Datum & Uhrzeit)">
+                <Input type="datetime-local" value={form.startDate} onChange={e => set('startDate', e.target.value)} />
               </Field>
-              <Field label="Datum">
-                <Input type="date" value={form.eventDate} onChange={e => set('eventDate', e.target.value)} />
+              <Field label="Ende (Datum & Uhrzeit)">
+                <Input type="datetime-local" value={form.endDate} onChange={e => set('endDate', e.target.value)} />
               </Field>
             </div>
 

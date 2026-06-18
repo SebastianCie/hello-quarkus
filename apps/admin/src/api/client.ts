@@ -54,7 +54,8 @@ export type Competition = {
   discipline: string
   format: string
   status: string
-  eventDate: string | null
+  startDate: string | null
+  endDate: string | null
   venue: string | null
   locationId: string | null
   selfRegistration: boolean
