@@ -8,7 +8,7 @@ import jakarta.ws.rs.core.Response;
 import java.util.List;
 import java.util.UUID;
 
-@Path("/api/org-users")
+@Path("/api/v1/org-users")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 public class OrgUserResource {

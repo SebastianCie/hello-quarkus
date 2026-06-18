@@ -8,13 +8,14 @@ import jakarta.ws.rs.core.Response;
 import java.util.List;
 import java.util.UUID;
 
-@Path("/api/athletes")
+@Path("/api/v1/athletes")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 public class AthleteResource {
 
     @GET
-    public List<Athlete> list() {
+    public List<Athlete> list(@QueryParam("orgId") UUID orgId) {
+        if (orgId != null) return Athlete.list("orgId", orgId);
         return Athlete.listAll();
     }
 
@@ -40,6 +41,7 @@ public class AthleteResource {
         Athlete entity = Athlete.findById(id);
         if (entity == null) return Response.status(404).build();
         entity.userId = data.userId;
+        entity.orgId = data.orgId;
         entity.firstName = data.firstName;
         entity.lastName = data.lastName;
         entity.dateOfBirth = data.dateOfBirth;

@@ -8,13 +8,15 @@ import jakarta.ws.rs.core.Response;
 import java.util.List;
 import java.util.UUID;
 
-@Path("/api/competitions")
+@Path("/api/v1/competitions")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 public class CompetitionResource {
 
     @GET
-    public List<Competition> list(@QueryParam("orgId") UUID orgId) {
+    public List<Competition> list(@QueryParam("orgId") UUID orgId,
+                                  @QueryParam("locationId") UUID locationId) {
+        if (locationId != null) return Competition.list("locationId", locationId);
         if (orgId != null) return Competition.list("orgId", orgId);
         return Competition.listAll();
     }
@@ -46,7 +48,8 @@ public class CompetitionResource {
         entity.format = data.format;
         entity.status = data.status;
         entity.eventDate = data.eventDate;
-        entity.location = data.location;
+        entity.venue = data.venue;
+        entity.locationId = data.locationId;
         entity.selfRegistration = data.selfRegistration;
         entity.registrationOpensAt = data.registrationOpensAt;
         entity.registrationClosesAt = data.registrationClosesAt;

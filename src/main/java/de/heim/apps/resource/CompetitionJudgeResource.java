@@ -8,7 +8,7 @@ import jakarta.ws.rs.core.Response;
 import java.util.List;
 import java.util.UUID;
 
-@Path("/api/competition-judges")
+@Path("/api/v1/competition-judges")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 public class CompetitionJudgeResource {

@@ -35,7 +35,10 @@ public class Competition extends PanacheEntityBase {
     @Column(name = "event_date")
     public LocalDate eventDate;
 
-    public String location;
+    public String venue;
+
+    @Column(name = "location_id")
+    public UUID locationId;
 
     @Column(name = "self_registration")
     public boolean selfRegistration = false;

@@ -17,6 +17,9 @@ public class Athlete extends PanacheEntityBase {
     @Column(name = "user_id")
     public UUID userId;
 
+    @Column(name = "org_id")
+    public UUID orgId;
+
     @Column(name = "first_name", nullable = false)
     public String firstName;
 

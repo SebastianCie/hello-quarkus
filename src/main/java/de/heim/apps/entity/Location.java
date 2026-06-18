@@ -6,8 +6,8 @@ import java.time.OffsetDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "org_user")
-public class OrgUser extends PanacheEntityBase {
+@Table(name = "location")
+public class Location extends PanacheEntityBase {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -16,14 +16,14 @@ public class OrgUser extends PanacheEntityBase {
     @Column(name = "org_id", nullable = false)
     public UUID orgId;
 
-    @Column(name = "user_id", nullable = false)
-    public UUID userId;
-
     @Column(nullable = false)
-    public String role;
+    public String name;
 
-    @Column(name = "location_id")
-    public UUID locationId;
+    public String address;
+
+    public String city;
+
+    public String country = "DE";
 
     @Column(name = "created_at")
     public OffsetDateTime createdAt = OffsetDateTime.now();
