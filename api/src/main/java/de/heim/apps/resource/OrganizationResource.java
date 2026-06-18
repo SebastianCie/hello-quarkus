@@ -42,6 +42,21 @@ public class OrganizationResource {
         return entity != null ? Response.ok(entity).build() : Response.status(404).build();
     }
 
+    @GET
+    @Path("/mine")
+    public Response mine() {
+        Optional<UUID> userId = resolveUserId();
+        if (userId.isEmpty()) return Response.status(401).build();
+
+        OrgUser orgUser = OrgUser.find("userId", userId.get()).firstResult();
+        if (orgUser == null) return Response.status(404).build();
+
+        Organization org = Organization.findById(orgUser.orgId);
+        if (org == null) return Response.status(404).build();
+
+        return Response.ok(org).build();
+    }
+
     /**
      * Called after login: creates org + first location + org_user(SUPERADMIN)
      * linked to the currently authenticated user.

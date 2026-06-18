@@ -1,0 +1,257 @@
+import { useState } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { api, type Competition, type Location } from '@/api/client'
+import {
+  Card, SectionLabel, Field, Input, Select, PrimaryButton, GhostButton, DangerButton, Modal, StatusBadge
+} from '@/components/FormUI'
+
+function slugify(v: string) {
+  return v.toLowerCase().trim()
+    .replace(/[äöü]/g, c => ({ ä: 'ae', ö: 'oe', ü: 'ue' }[c] ?? c))
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
+}
+
+const DISCIPLINES = [
+  { value: 'BOULDERN', label: 'Bouldern' },
+  { value: 'LEAD', label: 'Lead' },
+  { value: 'SPEED', label: 'Speed' },
+]
+const FORMATS = [
+  { value: 'FLASH', label: 'Flash' },
+  { value: 'ON_SIGHT', label: 'On-Sight' },
+  { value: 'REDPOINT', label: 'Redpoint' },
+]
+const STATUSES = [
+  { value: 'DRAFT', label: 'Entwurf' },
+  { value: 'OPEN', label: 'Offen' },
+  { value: 'ACTIVE', label: 'Aktiv' },
+  { value: 'CLOSED', label: 'Beendet' },
+]
+
+type CompForm = {
+  name: string; slug: string; discipline: string; format: string; status: string
+  eventDate: string; venue: string; locationId: string
+  selfRegistration: boolean; registrationOpensAt: string; registrationClosesAt: string
+}
+
+const emptyForm = (): CompForm => ({
+  name: '', slug: '', discipline: 'BOULDERN', format: 'FLASH', status: 'DRAFT',
+  eventDate: '', venue: '', locationId: '', selfRegistration: false,
+  registrationOpensAt: '', registrationClosesAt: '',
+})
+
+export function Competitions() {
+  const qc = useQueryClient()
+  const { data: org } = useQuery({ queryKey: ['org', 'mine'], queryFn: api.organizations.mine })
+  const { data: competitions = [], isLoading } = useQuery({
+    queryKey: ['competitions', org?.id],
+    queryFn: () => api.competitions.list(org!.id),
+    enabled: !!org,
+  })
+  const { data: locations = [] } = useQuery({
+    queryKey: ['locations', org?.id],
+    queryFn: () => api.locations.list(org!.id),
+    enabled: !!org,
+  })
+
+  const [modal, setModal] = useState<{ mode: 'new' | 'edit'; comp?: Competition } | null>(null)
+  const [form, setForm] = useState<CompForm>(emptyForm())
+  const [slugManual, setSlugManual] = useState(false)
+
+  function openNew() {
+    setForm(emptyForm()); setSlugManual(false); setModal({ mode: 'new' })
+  }
+  function openEdit(comp: Competition) {
+    setForm({
+      name: comp.name, slug: comp.slug, discipline: comp.discipline, format: comp.format, status: comp.status,
+      eventDate: comp.eventDate ?? '', venue: comp.venue ?? '', locationId: comp.locationId ?? '',
+      selfRegistration: comp.selfRegistration,
+      registrationOpensAt: comp.registrationOpensAt?.slice(0, 16) ?? '',
+      registrationClosesAt: comp.registrationClosesAt?.slice(0, 16) ?? '',
+    })
+    setSlugManual(true)
+    setModal({ mode: 'edit', comp })
+  }
+
+  function set(field: keyof CompForm, value: string | boolean) {
+    setForm(prev => {
+      const next = { ...prev, [field]: value }
+      if (field === 'name' && !slugManual && typeof value === 'string') next.slug = slugify(value)
+      return next
+    })
+  }
+
+  const save = useMutation({
+    mutationFn: () => {
+      const payload = {
+        orgId: org!.id,
+        name: form.name, slug: form.slug, discipline: form.discipline,
+        format: form.format, status: form.status,
+        eventDate: form.eventDate || null,
+        venue: form.venue || null,
+        locationId: form.locationId || null,
+        selfRegistration: form.selfRegistration,
+        registrationOpensAt: form.selfRegistration && form.registrationOpensAt ? form.registrationOpensAt : null,
+        registrationClosesAt: form.selfRegistration && form.registrationClosesAt ? form.registrationClosesAt : null,
+      }
+      return modal?.mode === 'edit' && modal.comp
+        ? api.competitions.update(modal.comp.id, payload)
+        : api.competitions.create(payload)
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['competitions', org?.id] }); setModal(null) },
+  })
+
+  const remove = useMutation({
+    mutationFn: (id: string) => api.competitions.delete(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['competitions', org?.id] }),
+  })
+
+  function locationName(id: string | null) {
+    if (!id) return null
+    return locations.find((l: Location) => l.id === id)?.name ?? null
+  }
+
+  if (isLoading) return <div style={{ color: '#a6b0c3' }}>Lädt…</div>
+
+  return (
+    <div style={{ maxWidth: 860 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 28 }}>
+        <div>
+          <p style={{ color: '#6cf0c2', fontSize: 11, fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', margin: '0 0 8px' }}>
+            Verwaltung
+          </p>
+          <h1 style={{ margin: 0, fontSize: 26, fontWeight: 700 }}>Wettkämpfe</h1>
+        </div>
+        <PrimaryButton onClick={openNew}>+ Neuer Wettkampf</PrimaryButton>
+      </div>
+
+      {competitions.length === 0 ? (
+        <Card style={{ textAlign: 'center', padding: '48px 24px' }}>
+          <p style={{ color: '#a6b0c3', margin: '0 0 20px' }}>Noch keine Wettkämpfe angelegt.</p>
+          <PrimaryButton onClick={openNew}>Ersten Wettkampf anlegen</PrimaryButton>
+        </Card>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {competitions.map((comp: Competition) => (
+            <div key={comp.id} style={{
+              background: '#121a2b', border: '1px solid rgba(255,255,255,0.08)',
+              borderRadius: 16, padding: '18px 20px',
+              display: 'flex', alignItems: 'center', gap: 16,
+            }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+                  <span style={{ fontWeight: 700, color: '#e8ecf3', fontSize: 15 }}>{comp.name}</span>
+                  <StatusBadge status={comp.status} />
+                </div>
+                <div style={{ fontSize: 12, color: '#a6b0c3', display: 'flex', gap: 12 }}>
+                  <span>{DISCIPLINES.find(d => d.value === comp.discipline)?.label ?? comp.discipline}</span>
+                  <span>{FORMATS.find(f => f.value === comp.format)?.label ?? comp.format}</span>
+                  {comp.eventDate && <span>{new Date(comp.eventDate).toLocaleDateString('de-DE')}</span>}
+                  {locationName(comp.locationId) && <span>{locationName(comp.locationId)}</span>}
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                <GhostButton onClick={() => openEdit(comp)}>Bearbeiten</GhostButton>
+                <DangerButton onClick={() => { if (confirm(`"${comp.name}" wirklich löschen?`)) remove.mutate(comp.id) }}>
+                  Löschen
+                </DangerButton>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Create / Edit Modal */}
+      {modal && (
+        <Modal
+          title={modal.mode === 'new' ? 'Neuer Wettkampf' : 'Wettkampf bearbeiten'}
+          onClose={() => setModal(null)}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <Field label="Name" required>
+              <Input value={form.name} onChange={e => { set('name', e.target.value) }} required />
+            </Field>
+
+            <Field label="URL-Kürzel" required>
+              <Input
+                value={form.slug}
+                onChange={e => { setSlugManual(true); set('slug', e.target.value) }}
+                pattern="[a-z0-9-]+"
+                required
+              />
+            </Field>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <Field label="Disziplin" required>
+                <Select value={form.discipline} onChange={e => set('discipline', e.target.value)}>
+                  {DISCIPLINES.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
+                </Select>
+              </Field>
+              <Field label="Format" required>
+                <Select value={form.format} onChange={e => set('format', e.target.value)}>
+                  {FORMATS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
+                </Select>
+              </Field>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <Field label="Status">
+                <Select value={form.status} onChange={e => set('status', e.target.value)}>
+                  {STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                </Select>
+              </Field>
+              <Field label="Datum">
+                <Input type="date" value={form.eventDate} onChange={e => set('eventDate', e.target.value)} />
+              </Field>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <Field label="Standort">
+                <Select value={form.locationId} onChange={e => set('locationId', e.target.value)}>
+                  <option value="">— keiner —</option>
+                  {locations.map((l: Location) => <option key={l.id} value={l.id}>{l.name}</option>)}
+                </Select>
+              </Field>
+              <Field label="Venue / Halle">
+                <Input value={form.venue} onChange={e => set('venue', e.target.value)} placeholder="optional" />
+              </Field>
+            </div>
+
+            <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={form.selfRegistration}
+                onChange={e => set('selfRegistration', e.target.checked)}
+                style={{ width: 16, height: 16, accentColor: '#ffa222' }}
+              />
+              <span style={{ fontSize: 13, color: '#e8ecf3' }}>Selbstregistrierung für Athleten</span>
+            </label>
+
+            {form.selfRegistration && (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <Field label="Anmeldung von">
+                  <Input type="datetime-local" value={form.registrationOpensAt} onChange={e => set('registrationOpensAt', e.target.value)} />
+                </Field>
+                <Field label="Anmeldung bis">
+                  <Input type="datetime-local" value={form.registrationClosesAt} onChange={e => set('registrationClosesAt', e.target.value)} />
+                </Field>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: 12, marginTop: 4 }}>
+              <PrimaryButton onClick={() => save.mutate()} disabled={save.isPending}>
+                {save.isPending ? 'Speichert…' : 'Speichern'}
+              </PrimaryButton>
+              <GhostButton onClick={() => setModal(null)}>Abbrechen</GhostButton>
+            </div>
+            {save.isError && (
+              <p style={{ color: '#ff5d6b', fontSize: 13, margin: 0 }}>
+                {save.error instanceof Error ? save.error.message : 'Fehler beim Speichern'}
+              </p>
+            )}
+          </div>
+        </Modal>
+      )}
+    </div>
+  )
+}
