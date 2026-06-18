@@ -1,0 +1,44 @@
+{
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "required": "Required",
+    "optional": "Optional"
+  },
+  "nav": {
+    "organizations": "Organizations",
+    "competitions": "Competitions",
+    "athletes": "Athletes",
+    "settings": "Settings"
+  },
+  "org": {
+    "register": {
+      "title": "Register Organization",
+      "subtitle": "Register your climbing gym or club on the Beta Battle platform.",
+      "orgSection": "Organization",
+      "locationSection": "First Location",
+      "name": "Organization Name",
+      "namePlaceholder": "e.g. BoulderFun GmbH",
+      "slug": "URL Slug",
+      "slugPlaceholder": "e.g. boulderfun",
+      "slugHint": "Used in URLs. Only lowercase letters, numbers and hyphens.",
+      "email": "Contact Email",
+      "emailPlaceholder": "info@boulderfun.com",
+      "logoUrl": "Logo URL",
+      "logoUrlPlaceholder": "https://...",
+      "locationName": "Location Name",
+      "locationNamePlaceholder": "e.g. BoulderFun Regensburg",
+      "city": "City",
+      "cityPlaceholder": "e.g. Regensburg",
+      "address": "Address",
+      "addressPlaceholder": "e.g. 1 Main Street",
+      "submit": "Create Organization",
+      "successTitle": "Organization created!",
+      "successMessage": "Your organization has been successfully registered.",
+      "errorMessage": "An error occurred while creating the organization."
+    }
+  }
+}

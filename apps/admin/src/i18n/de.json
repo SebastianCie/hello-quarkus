@@ -1,0 +1,44 @@
+{
+  "common": {
+    "save": "Speichern",
+    "cancel": "Abbrechen",
+    "loading": "Lädt...",
+    "error": "Fehler",
+    "success": "Erfolgreich",
+    "required": "Pflichtfeld",
+    "optional": "Optional"
+  },
+  "nav": {
+    "organizations": "Organisationen",
+    "competitions": "Wettkämpfe",
+    "athletes": "Athleten",
+    "settings": "Einstellungen"
+  },
+  "org": {
+    "register": {
+      "title": "Organisation registrieren",
+      "subtitle": "Registriere deine Boulderhalle oder deinen Verein auf der Beta Battle Plattform.",
+      "orgSection": "Organisation",
+      "locationSection": "Erster Standort",
+      "name": "Name der Organisation",
+      "namePlaceholder": "z.B. BoulderFun GmbH",
+      "slug": "URL-Kürzel",
+      "slugPlaceholder": "z.B. boulderfun",
+      "slugHint": "Wird für die URL verwendet. Nur Kleinbuchstaben, Zahlen und Bindestriche.",
+      "email": "Kontakt E-Mail",
+      "emailPlaceholder": "info@boulderfun.de",
+      "logoUrl": "Logo URL",
+      "logoUrlPlaceholder": "https://...",
+      "locationName": "Name des Standorts",
+      "locationNamePlaceholder": "z.B. BoulderFun Regensburg",
+      "city": "Stadt",
+      "cityPlaceholder": "z.B. Regensburg",
+      "address": "Adresse",
+      "addressPlaceholder": "z.B. Musterstraße 1",
+      "submit": "Organisation anlegen",
+      "successTitle": "Organisation angelegt!",
+      "successMessage": "Deine Organisation wurde erfolgreich registriert.",
+      "errorMessage": "Beim Anlegen der Organisation ist ein Fehler aufgetreten."
+    }
+  }
+}
