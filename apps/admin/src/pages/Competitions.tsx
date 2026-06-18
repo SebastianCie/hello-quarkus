@@ -89,13 +89,13 @@ export function Competitions() {
         orgId: org!.id,
         name: form.name, slug: form.slug, discipline: form.discipline,
         format: form.format, status: form.status,
-        startDate: form.startDate || null,
-        endDate: form.endDate || null,
+        startDate: form.startDate ? new Date(form.startDate).toISOString() : null,
+        endDate: form.endDate ? new Date(form.endDate).toISOString() : null,
         venue: form.venue || null,
         locationId: form.locationId || null,
         selfRegistration: form.selfRegistration,
-        registrationOpensAt: form.selfRegistration && form.registrationOpensAt ? form.registrationOpensAt : null,
-        registrationClosesAt: form.selfRegistration && form.registrationClosesAt ? form.registrationClosesAt : null,
+        registrationOpensAt: form.selfRegistration && form.registrationOpensAt ? new Date(form.registrationOpensAt).toISOString() : null,
+        registrationClosesAt: form.selfRegistration && form.registrationClosesAt ? new Date(form.registrationClosesAt).toISOString() : null,
       }
       return modal?.mode === 'edit' && modal.comp
         ? api.competitions.update(modal.comp.id, payload)
