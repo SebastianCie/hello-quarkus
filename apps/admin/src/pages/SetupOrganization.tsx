@@ -260,7 +260,7 @@ export function SetupOrganization() {
 
           {mutation.isError && (
             <p style={{ color: '#ff5d6b', fontSize: 13, marginBottom: 16 }}>
-              {t('org.register.errorMessage')}
+              {mutation.error instanceof Error ? mutation.error.message : t('org.register.errorMessage')}
             </p>
           )}
 

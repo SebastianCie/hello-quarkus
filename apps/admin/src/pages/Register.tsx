@@ -231,7 +231,8 @@ export function Register() {
 
           {(validationError || mutation.isError) && (
             <p style={{ color: '#ff5d6b', fontSize: 13, marginBottom: 16 }}>
-              {validationError ?? t('register.errorMessage')}
+              {validationError
+                ?? (mutation.error instanceof Error ? mutation.error.message : t('register.errorMessage'))}
             </p>
           )}
 

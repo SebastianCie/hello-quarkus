@@ -14,8 +14,14 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     ...init,
   })
   if (!res.ok) {
-    const text = await res.text().catch(() => res.statusText)
-    throw new Error(`${res.status}: ${text}`)
+    let message = res.statusText
+    try {
+      const body = await res.json()
+      message = body.message ?? body.error ?? JSON.stringify(body)
+    } catch {
+      message = await res.text().catch(() => res.statusText)
+    }
+    throw new Error(message)
   }
   return res.json() as Promise<T>
 }
