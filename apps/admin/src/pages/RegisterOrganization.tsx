@@ -103,22 +103,16 @@ export function RegisterOrganization() {
   const [done, setDone] = useState(false)
 
   const mutation = useMutation({
-    mutationFn: async (data: FormData) => {
-      const org = await api.organizations.create({
+    mutationFn: (data: FormData) =>
+      api.organizations.register({
         name: data.orgName,
         slug: data.slug,
         contactEmail: data.email || null,
         logoUrl: data.logoUrl || null,
-      })
-      await api.locations.create({
-        orgId: org.id,
-        name: data.locationName,
-        city: data.city || null,
-        address: data.address || null,
-        country: 'DE',
-      })
-      return org
-    },
+        locationName: data.locationName,
+        locationCity: data.city || null,
+        locationAddress: data.address || null,
+      }),
     onSuccess: () => setDone(true),
   })
 

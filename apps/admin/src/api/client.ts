@@ -1,8 +1,16 @@
+import { keycloak, DEV_MODE } from '@/auth/keycloak'
+
 const BASE = '/api/v1'
+
+function authHeader(): Record<string, string> {
+  if (DEV_MODE) return {}
+  const token = keycloak?.token
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json', ...init?.headers },
+    headers: { 'Content-Type': 'application/json', ...authHeader(), ...init?.headers },
     ...init,
   })
   if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
@@ -17,22 +25,19 @@ export type Organization = {
   logoUrl: string | null
 }
 
-export type Location = {
-  id: string
-  orgId: string
+export type RegisterRequest = {
   name: string
-  address: string | null
-  city: string | null
-  country: string
+  slug: string
+  contactEmail: string | null
+  logoUrl: string | null
+  locationName: string
+  locationCity: string | null
+  locationAddress: string | null
 }
 
 export const api = {
   organizations: {
-    create: (data: Omit<Organization, 'id'>) =>
-      request<Organization>('/organizations', { method: 'POST', body: JSON.stringify(data) }),
-  },
-  locations: {
-    create: (data: Omit<Location, 'id'>) =>
-      request<Location>('/locations', { method: 'POST', body: JSON.stringify(data) }),
+    register: (data: RegisterRequest) =>
+      request<Organization>('/organizations/register', { method: 'POST', body: JSON.stringify(data) }),
   },
 }
