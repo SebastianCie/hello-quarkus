@@ -219,6 +219,16 @@ export function Competitions() {
                 <Input type="datetime-local" value={form.endDate} onChange={e => set('endDate', e.target.value)} />
               </Field>
             </div>
+            {form.startDate && form.endDate && new Date(form.startDate) >= new Date(form.endDate) && (
+              <div style={{
+                background: 'rgba(255, 93, 107, 0.12)',
+                border: '1px solid rgba(255, 93, 107, 0.4)',
+                borderRadius: 8, padding: '8px 12px',
+                fontSize: 13, color: '#ff5d6b',
+              }}>
+                Startdatum muss vor dem Enddatum liegen.
+              </div>
+            )}
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <Field label="Standort">
