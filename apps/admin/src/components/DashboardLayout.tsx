@@ -7,6 +7,7 @@ const NAV: { to: string; label: string; end?: boolean }[] = [
   { to: '/dashboard', label: 'Übersicht', end: true },
   { to: '/dashboard/organisation', label: 'Organisation & Standorte' },
   { to: '/dashboard/wettkampfe', label: 'Wettkämpfe' },
+  { to: '/dashboard/hilfe', label: 'Hilfe & FAQ' },
 ]
 
 export function DashboardLayout() {
