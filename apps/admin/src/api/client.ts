@@ -84,6 +84,18 @@ export type Route = {
   categoryId: string | null
 }
 
+export type Athlete = {
+  id: string
+  orgId: string | null
+  firstName: string
+  lastName: string
+  dateOfBirth: string | null
+  gender: string | null
+  club: string | null
+  nation: string | null
+  licenseNumber: string | null
+}
+
 export type SetupRequest = {
   name: string; slug: string; contactEmail: string | null; logoUrl: string | null
   locationName: string; locationCity: string | null; locationAddress: string | null
@@ -154,5 +166,16 @@ export const api = {
       request<Route>(`/routes/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     delete: (id: string) =>
       request<void>(`/routes/${id}`, { method: 'DELETE' }),
+  },
+
+  athletes: {
+    list: (orgId: string) =>
+      request<Athlete[]>(`/athletes?orgId=${orgId}`),
+    create: (data: Omit<Athlete, 'id'>) =>
+      request<Athlete>('/athletes', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: Partial<Athlete>) =>
+      request<Athlete>(`/athletes/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    delete: (id: string) =>
+      request<void>(`/athletes/${id}`, { method: 'DELETE' }),
   },
 }

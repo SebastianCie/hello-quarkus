@@ -1,0 +1,1 @@
+ALTER TABLE athlete ADD COLUMN org_id UUID REFERENCES organization(id) ON DELETE CASCADE;

@@ -14,6 +14,9 @@ public class Athlete extends PanacheEntityBase {
     @GeneratedValue(strategy = GenerationType.UUID)
     public UUID id;
 
+    @Column(name = "org_id")
+    public UUID orgId;
+
     @Column(name = "user_id")
     public UUID userId;
 

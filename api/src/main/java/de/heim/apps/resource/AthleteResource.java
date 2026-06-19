@@ -14,7 +14,8 @@ import java.util.UUID;
 public class AthleteResource {
 
     @GET
-    public List<Athlete> list() {
+    public List<Athlete> list(@QueryParam("orgId") UUID orgId) {
+        if (orgId != null) return Athlete.list("orgId", orgId);
         return Athlete.listAll();
     }
 
@@ -39,7 +40,7 @@ public class AthleteResource {
     public Response update(@PathParam("id") UUID id, Athlete data) {
         Athlete entity = Athlete.findById(id);
         if (entity == null) return Response.status(404).build();
-        entity.userId = data.userId;
+        entity.orgId = data.orgId;
         entity.firstName = data.firstName;
         entity.lastName = data.lastName;
         entity.dateOfBirth = data.dateOfBirth;
