@@ -233,17 +233,12 @@ export function Competitions() {
               </div>
             )}
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <Field label="Standort">
-                <Select value={form.locationId} onChange={e => set('locationId', e.target.value)}>
-                  <option value="">— keiner —</option>
-                  {locations.map((l: Location) => <option key={l.id} value={l.id}>{l.name}</option>)}
-                </Select>
-              </Field>
-              <Field label="Venue / Halle">
-                <Input value={form.venue} onChange={e => set('venue', e.target.value)} placeholder="optional" />
-              </Field>
-            </div>
+            <Field label="Standort">
+              <Select value={form.locationId} onChange={e => set('locationId', e.target.value)}>
+                <option value="">— keiner —</option>
+                {locations.map((l: Location) => <option key={l.id} value={l.id}>{l.name}</option>)}
+              </Select>
+            </Field>
 
             <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
               <input

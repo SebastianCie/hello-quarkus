@@ -21,10 +21,6 @@ const FAQ: Section[] = [
         q: 'Wann sollte ich Start- und Enddatum setzen?',
         a: 'Start- und Enddatum beschreiben den Zeitraum des Wettkampfs selbst (z.B. Wettkampftag 09:00–18:00 Uhr). Die Anmeldezeitraum wird separat über "Selbstregistrierung" mit eigenem Öffnungs- und Schlussdatum gesteuert.',
       },
-      {
-        q: 'Was ist der Unterschied zwischen Venue und Standort?',
-        a: 'Der Standort ist eine fest hinterlegte Kletterhalle aus deiner Organisation. Venue ist ein optionales Freitextfeld für ergänzende Angaben (z.B. "Halle B, Eingang Nord").',
-      },
     ],
   },
   {
