@@ -63,6 +63,27 @@ export type Competition = {
   registrationClosesAt: string | null
 }
 
+export type CompetitionCategory = {
+  id: string
+  compId: string
+  name: string
+  gender: string | null
+  ageMin: string | null
+  ageMax: string | null
+  maxParticipants: number | null
+}
+
+export type Route = {
+  id: string
+  compId: string
+  routeNumber: string | null
+  discipline: string | null
+  grade: string | null
+  maxScore: number | null
+  sortOrder: number | null
+  categoryId: string | null
+}
+
 export type SetupRequest = {
   name: string; slug: string; contactEmail: string | null; logoUrl: string | null
   locationName: string; locationCity: string | null; locationAddress: string | null
@@ -103,11 +124,35 @@ export const api = {
   competitions: {
     list: (orgId: string) =>
       request<Competition[]>(`/competitions?orgId=${orgId}`),
+    get: (id: string) =>
+      request<Competition>(`/competitions/${id}`),
     create: (data: Omit<Competition, 'id'>) =>
       request<Competition>('/competitions', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: Partial<Competition>) =>
       request<Competition>(`/competitions/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     delete: (id: string) =>
       request<void>(`/competitions/${id}`, { method: 'DELETE' }),
+  },
+
+  categories: {
+    list: (compId: string) =>
+      request<CompetitionCategory[]>(`/competition-categories?compId=${compId}`),
+    create: (data: Omit<CompetitionCategory, 'id'>) =>
+      request<CompetitionCategory>('/competition-categories', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: Partial<CompetitionCategory>) =>
+      request<CompetitionCategory>(`/competition-categories/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    delete: (id: string) =>
+      request<void>(`/competition-categories/${id}`, { method: 'DELETE' }),
+  },
+
+  routes: {
+    list: (compId: string) =>
+      request<Route[]>(`/routes?compId=${compId}`),
+    create: (data: Omit<Route, 'id'>) =>
+      request<Route>('/routes', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: Partial<Route>) =>
+      request<Route>(`/routes/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    delete: (id: string) =>
+      request<void>(`/routes/${id}`, { method: 'DELETE' }),
   },
 }

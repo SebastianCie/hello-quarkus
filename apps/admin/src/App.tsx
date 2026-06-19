@@ -7,6 +7,7 @@ import { SetupOrganization } from '@/pages/SetupOrganization'
 import { DashboardHome } from '@/pages/DashboardHome'
 import { OrganisationSettings } from '@/pages/OrganisationSettings'
 import { Competitions } from '@/pages/Competitions'
+import { CompetitionDetail } from '@/pages/CompetitionDetail'
 import { keycloak, DEV_MODE } from '@/auth/keycloak'
 
 const queryClient = new QueryClient()
@@ -40,6 +41,7 @@ export default function App() {
               <Route index element={<DashboardHome />} />
               <Route path="organisation" element={<OrganisationSettings />} />
               <Route path="wettkampfe" element={<Competitions />} />
+              <Route path="wettkampfe/:id" element={<CompetitionDetail />} />
             </Route>
             <Route path="*" element={<SmartRedirect />} />
           </Routes>

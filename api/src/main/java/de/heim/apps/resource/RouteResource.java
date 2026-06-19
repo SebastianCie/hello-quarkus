@@ -46,6 +46,7 @@ public class RouteResource {
         entity.grade = data.grade;
         entity.maxScore = data.maxScore;
         entity.sortOrder = data.sortOrder;
+        entity.categoryId = data.categoryId;
         return Response.ok(entity).build();
     }
 

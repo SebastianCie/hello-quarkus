@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
 import { api, type Competition, type Location } from '@/api/client'
 import {
   Card, SectionLabel, Field, Input, Select, PrimaryButton, GhostButton, DangerButton, Modal, StatusBadge
@@ -41,6 +42,7 @@ const emptyForm = (): CompForm => ({
 })
 
 export function Competitions() {
+  const navigate = useNavigate()
   const qc = useQueryClient()
   const { data: org } = useQuery({ queryKey: ['org', 'mine'], queryFn: api.organizations.mine })
   const { data: competitions = [], isLoading } = useQuery({
@@ -162,6 +164,7 @@ export function Competitions() {
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                <PrimaryButton onClick={() => navigate(`/dashboard/wettkampfe/${comp.id}`)}>Verwalten</PrimaryButton>
                 <GhostButton onClick={() => openEdit(comp)}>Bearbeiten</GhostButton>
                 <DangerButton onClick={() => { if (confirm(`"${comp.name}" wirklich löschen?`)) remove.mutate(comp.id) }}>
                   Löschen

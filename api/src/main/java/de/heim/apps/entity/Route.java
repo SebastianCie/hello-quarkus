@@ -27,4 +27,7 @@ public class Route extends PanacheEntityBase {
 
     @Column(name = "sort_order")
     public Integer sortOrder;
+
+    @Column(name = "category_id")
+    public UUID categoryId;
 }
