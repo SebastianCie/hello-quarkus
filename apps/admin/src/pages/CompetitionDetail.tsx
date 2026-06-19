@@ -8,9 +8,10 @@ import {
 
 const GENDERS = [
   { value: '', label: '— alle —' },
-  { value: 'MALE', label: 'Männlich' },
   { value: 'FEMALE', label: 'Weiblich' },
+  { value: 'MALE', label: 'Männlich' },
   { value: 'MIXED', label: 'Mixed' },
+  { value: 'DIVERSE', label: 'Divers' },
 ]
 
 type CatForm = { name: string; gender: string; ageMin: string; ageMax: string; maxParticipants: string }
