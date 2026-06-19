@@ -112,18 +112,20 @@ export function CompetitionDetail() {
     enabled: !!id,
   })
 
-  // ── Sort state ──────────────────────────────────────────────────────────────
+  // ── Sort + group state ──────────────────────────────────────────────────────
   const [sortCol, setSortCol] = useState<SortCol>('sortOrder')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
+  const [grouped, setGrouped] = useState(true)
 
   function toggleSort(col: SortCol) {
     if (sortCol === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
     else { setSortCol(col); setSortDir('asc') }
   }
 
-  // ── Grouped + sorted routes ─────────────────────────────────────────────────
+  // ── Sorted + grouped routes ─────────────────────────────────────────────────
+  const sorted = useMemo(() => sortRoutes(routes as Route[], sortCol, sortDir), [routes, sortCol, sortDir])
+
   const groups = useMemo(() => {
-    const sorted = sortRoutes(routes as Route[], sortCol, sortDir)
     const map = new Map<string | null, Route[]>()
     map.set(null, [])
     for (const cat of categories as CompetitionCategory[]) map.set(cat.id, [])
@@ -133,7 +135,7 @@ export function CompetitionDetail() {
       map.get(key)!.push(r)
     }
     return map
-  }, [routes, categories, sortCol, sortDir])
+  }, [sorted, categories])
 
   // ── Category modal ──────────────────────────────────────────────────────────
   const [catModal, setCatModal] = useState<{ mode: 'new' | 'edit'; cat?: CompetitionCategory } | null>(null)
@@ -193,6 +195,43 @@ export function CompetitionDetail() {
   })
 
   if (compLoading || !comp) return <div style={{ color: '#a6b0c3' }}>Lädt…</div>
+
+  function renderRouteRow(route: Route, catId: string | null) {
+    if (editingRouteId === route.id) {
+      return (
+        <RouteInlineRow key={route.id}
+          row={editingRow} onChange={setEditingRow}
+          onSave={() => updateRoute.mutate()} onCancel={cancelEdit}
+          pending={updateRoute.isPending}
+          error={updateRoute.isError ? (updateRoute.error instanceof Error ? updateRoute.error.message : 'Fehler') : null}
+          categories={categories as CompetitionCategory[]}
+        />
+      )
+    }
+    const catName = catId
+      ? (categories as CompetitionCategory[]).find(c => c.id === catId)?.name ?? '—'
+      : 'alle'
+    return (
+      <tr key={route.id}
+        onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.03)')}
+        onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+        <td style={tdStyle}>{route.routeNumber ?? <span style={{ color: '#6b7890' }}>—</span>}</td>
+        <td style={tdStyle}>{route.name ?? <span style={{ color: '#6b7890' }}>—</span>}</td>
+        <td style={tdStyle}>{route.sortOrder != null ? route.sortOrder : <span style={{ color: '#6b7890' }}>—</span>}</td>
+        <td style={tdStyle}>{route.grade ?? <span style={{ color: '#6b7890' }}>—</span>}</td>
+        <td style={tdStyle}>{route.maxScore != null ? route.maxScore : <span style={{ color: '#6b7890' }}>—</span>}</td>
+        <td style={tdStyle} colSpan={2}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+            <span style={{ color: '#a6b0c3', fontSize: 12 }}>{catName}</span>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <GhostButton onClick={() => startEdit(route)} style={{ padding: '4px 10px', fontSize: 12 }}>Bearbeiten</GhostButton>
+              <DangerButton onClick={() => { if (confirm(`Route "${route.routeNumber ?? '—'}" wirklich löschen?`)) deleteRoute.mutate(route.id) }} style={{ padding: '4px 10px', fontSize: 12 }}>Löschen</DangerButton>
+            </div>
+          </div>
+        </td>
+      </tr>
+    )
+  }
 
   const thBase: React.CSSProperties = {
     padding: '6px 8px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase',
@@ -271,7 +310,12 @@ export function CompetitionDetail() {
       <Card>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
           <SectionLabel>Routen / Boulder</SectionLabel>
-          {!newRow && <PrimaryButton onClick={startNew}>+ Route</PrimaryButton>}
+          <div style={{ display: 'flex', gap: 8 }}>
+            <GhostButton onClick={() => setGrouped(g => !g)} style={{ fontSize: 12, padding: '4px 12px' }}>
+              {grouped ? 'Gruppierung aufheben' : 'Nach Kategorie gruppieren'}
+            </GhostButton>
+            {!newRow && <PrimaryButton onClick={startNew}>+ Route</PrimaryButton>}
+          </div>
         </div>
 
         <div style={{ overflowX: 'auto' }}>
@@ -295,54 +339,24 @@ export function CompetitionDetail() {
                 </tr>
               ) : (
                 <>
-                  {/* Grouped rows */}
-                  {[null, ...(categories as CompetitionCategory[]).map(c => c.id)].map(catId => {
-                    const groupRoutes = groups.get(catId) ?? []
-                    if (groupRoutes.length === 0) return null
-                    const catLabel = catId
-                      ? (categories as CompetitionCategory[]).find(c => c.id === catId)?.name ?? catId
-                      : 'Alle Kategorien'
-                    return (
-                      <React.Fragment key={catId ?? '__all__'}>
-                        <tr>
-                          <td colSpan={totalCols} style={groupHeaderStyle}>{catLabel}</td>
-                        </tr>
-                        {groupRoutes.map(route =>
-                          editingRouteId === route.id ? (
-                            <RouteInlineRow key={route.id}
-                              row={editingRow} onChange={setEditingRow}
-                              onSave={() => updateRoute.mutate()} onCancel={cancelEdit}
-                              pending={updateRoute.isPending}
-                              error={updateRoute.isError ? (updateRoute.error instanceof Error ? updateRoute.error.message : 'Fehler') : null}
-                              categories={categories as CompetitionCategory[]}
-                            />
-                          ) : (
-                            <tr key={route.id}
-                              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.03)')}
-                              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                              <td style={tdStyle}>{route.routeNumber ?? <span style={{ color: '#6b7890' }}>—</span>}</td>
-                              <td style={tdStyle}>{route.name ?? <span style={{ color: '#6b7890' }}>—</span>}</td>
-                              <td style={tdStyle}>{route.sortOrder != null ? route.sortOrder : <span style={{ color: '#6b7890' }}>—</span>}</td>
-                              <td style={tdStyle}>{route.grade ?? <span style={{ color: '#6b7890' }}>—</span>}</td>
-                              <td style={tdStyle}>{route.maxScore != null ? route.maxScore : <span style={{ color: '#6b7890' }}>—</span>}</td>
-                              <td style={tdStyle} colSpan={2}>
-                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                                  <span style={{ color: '#a6b0c3', fontSize: 12 }}>
-                                    {catId ? (categories as CompetitionCategory[]).find(c => c.id === catId)?.name : 'alle'}
-                                  </span>
-                                  <div style={{ display: 'flex', gap: 6 }}>
-                                    <GhostButton onClick={() => startEdit(route)} style={{ padding: '4px 10px', fontSize: 12 }}>Bearbeiten</GhostButton>
-                                    <DangerButton onClick={() => { if (confirm(`Route "${route.routeNumber ?? '—'}" wirklich löschen?`)) deleteRoute.mutate(route.id) }} style={{ padding: '4px 10px', fontSize: 12 }}>Löschen</DangerButton>
-                                  </div>
-                                </div>
-                              </td>
-                            </tr>
-                          )
-                        )}
-                      </React.Fragment>
-                    )
-                  })}
-                  {/* New row at bottom */}
+                  {grouped
+                    /* ── Grouped view ── */
+                    ? [null, ...(categories as CompetitionCategory[]).map(c => c.id)].map(catId => {
+                        const groupRoutes = groups.get(catId) ?? []
+                        if (groupRoutes.length === 0) return null
+                        const catLabel = catId
+                          ? (categories as CompetitionCategory[]).find(c => c.id === catId)?.name ?? catId
+                          : 'Alle Kategorien'
+                        return (
+                          <React.Fragment key={catId ?? '__all__'}>
+                            <tr><td colSpan={totalCols} style={groupHeaderStyle}>{catLabel}</td></tr>
+                            {groupRoutes.map(route => renderRouteRow(route, catId))}
+                          </React.Fragment>
+                        )
+                      })
+                    /* ── Flat view ── */
+                    : sorted.map(route => renderRouteRow(route, route.categoryId ?? null))
+                  }
                   {newRow && (
                     <RouteInlineRow
                       row={newRow} onChange={setNewRow}
