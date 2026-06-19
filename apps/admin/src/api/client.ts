@@ -84,6 +84,17 @@ export type Route = {
   categoryId: string | null
 }
 
+export type Registration = {
+  id: string
+  compId: string
+  athleteId: string
+  categoryId: string | null
+  status: string
+  startNumber: string | null
+  registeredAt: string | null
+  confirmedAt: string | null
+}
+
 export type Athlete = {
   id: string
   orgId: string | null
@@ -166,6 +177,17 @@ export const api = {
       request<Route>(`/routes/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     delete: (id: string) =>
       request<void>(`/routes/${id}`, { method: 'DELETE' }),
+  },
+
+  registrations: {
+    list: (compId: string) =>
+      request<Registration[]>(`/registrations?compId=${compId}`),
+    create: (data: Omit<Registration, 'id' | 'registeredAt' | 'confirmedAt'>) =>
+      request<Registration>('/registrations', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: Partial<Registration>) =>
+      request<Registration>(`/registrations/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    delete: (id: string) =>
+      request<void>(`/registrations/${id}`, { method: 'DELETE' }),
   },
 
   athletes: {

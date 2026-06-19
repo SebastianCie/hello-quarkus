@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { api, type CompetitionCategory, type Route } from '@/api/client'
+import { api, type CompetitionCategory, type Route, type Registration, type Athlete } from '@/api/client'
 import {
   Card, SectionLabel, Field, Input, Select, PrimaryButton, GhostButton, DangerButton, Modal, StatusBadge
 } from '@/components/FormUI'
@@ -111,6 +111,17 @@ export function CompetitionDetail() {
     queryFn: () => api.routes.list(id!),
     enabled: !!id,
   })
+  const { data: org } = useQuery({ queryKey: ['org', 'mine'], queryFn: api.organizations.mine })
+  const { data: athletes = [] } = useQuery({
+    queryKey: ['athletes', org?.id],
+    queryFn: () => api.athletes.list(org!.id),
+    enabled: !!org,
+  })
+  const { data: registrations = [] } = useQuery({
+    queryKey: ['registrations', id],
+    queryFn: () => api.registrations.list(id!),
+    enabled: !!id,
+  })
 
   // ── Sort + group state ──────────────────────────────────────────────────────
   const [sortCol, setSortCol] = useState<SortCol>('sortOrder')
@@ -193,6 +204,48 @@ export function CompetitionDetail() {
     mutationFn: (routeId: string) => api.routes.delete(routeId),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['routes', id] }),
   })
+
+  // ── Registrations ───────────────────────────────────────────────────────────
+  const STATUSES = [
+    { value: 'PENDING', label: 'Ausstehend' },
+    { value: 'CONFIRMED', label: 'Bestätigt' },
+    { value: 'REJECTED', label: 'Abgelehnt' },
+  ]
+  const STATUS_COLOR: Record<string, string> = {
+    PENDING: '#a6b0c3', CONFIRMED: '#6cf0c2', REJECTED: '#ff5d6b',
+  }
+
+  const [addForm, setAddForm] = useState({ athleteId: '', categoryId: '', startNumber: '' })
+  const [editingRegId, setEditingRegId] = useState<string | null>(null)
+  const [editingReg, setEditingReg] = useState({ categoryId: '', startNumber: '', status: 'PENDING' })
+
+  const addReg = useMutation({
+    mutationFn: () => api.registrations.create({
+      compId: id!, athleteId: addForm.athleteId,
+      categoryId: addForm.categoryId || null,
+      status: 'CONFIRMED',
+      startNumber: addForm.startNumber || null,
+    }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['registrations', id] })
+      setAddForm({ athleteId: '', categoryId: '', startNumber: '' })
+    },
+  })
+  const updateReg = useMutation({
+    mutationFn: (regId: string) => api.registrations.update(regId, {
+      categoryId: editingReg.categoryId || null,
+      startNumber: editingReg.startNumber || null,
+      status: editingReg.status,
+    }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['registrations', id] }); setEditingRegId(null) },
+  })
+  const deleteReg = useMutation({
+    mutationFn: (regId: string) => api.registrations.delete(regId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['registrations', id] }),
+  })
+
+  // Athletes already registered (to prevent duplicates in dropdown)
+  const registeredAthleteIds = new Set((registrations as Registration[]).map(r => r.athleteId))
 
   if (compLoading || !comp) return <div style={{ color: '#a6b0c3' }}>Lädt…</div>
 
@@ -371,6 +424,146 @@ export function CompetitionDetail() {
             </tbody>
           </table>
         </div>
+      </Card>
+
+      {/* Registrations */}
+      <Card style={{ marginTop: 24 }}>
+        <SectionLabel style={{ marginBottom: 16 }}>Anmeldungen</SectionLabel>
+
+        {/* Add form */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 120px auto', gap: 10, marginBottom: 20, alignItems: 'flex-end' }}>
+          <div>
+            <div style={{ fontSize: 11, color: '#6b7890', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>Athlet</div>
+            <select
+              style={{ width: '100%', background: '#1a2235', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8, color: '#e8ecf3', fontSize: 13, padding: '8px 12px', cursor: 'pointer' }}
+              value={addForm.athleteId}
+              onChange={e => setAddForm(p => ({ ...p, athleteId: e.target.value }))}
+            >
+              <option value="">— Athlet wählen —</option>
+              {(athletes as Athlete[])
+                .filter(a => !registeredAthleteIds.has(a.id))
+                .sort((a, b) => a.lastName.localeCompare(b.lastName, 'de'))
+                .map(a => (
+                  <option key={a.id} value={a.id}>{a.lastName}, {a.firstName}</option>
+                ))}
+            </select>
+          </div>
+          <div>
+            <div style={{ fontSize: 11, color: '#6b7890', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>Kategorie</div>
+            <select
+              style={{ width: '100%', background: '#1a2235', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8, color: '#e8ecf3', fontSize: 13, padding: '8px 12px', cursor: 'pointer' }}
+              value={addForm.categoryId}
+              onChange={e => setAddForm(p => ({ ...p, categoryId: e.target.value }))}
+            >
+              <option value="">— Kategorie —</option>
+              {(categories as CompetitionCategory[]).map(c => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <div style={{ fontSize: 11, color: '#6b7890', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>Startnr.</div>
+            <input
+              style={{ width: '100%', background: '#1a2235', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8, color: '#e8ecf3', fontSize: 13, padding: '8px 12px', boxSizing: 'border-box' }}
+              value={addForm.startNumber}
+              placeholder="optional"
+              onChange={e => setAddForm(p => ({ ...p, startNumber: e.target.value }))}
+            />
+          </div>
+          <PrimaryButton
+            onClick={() => addReg.mutate()}
+            disabled={!addForm.athleteId || addReg.isPending}
+          >
+            {addReg.isPending ? '…' : 'Hinzufügen'}
+          </PrimaryButton>
+        </div>
+        {addReg.isError && (
+          <p style={{ color: '#ff5d6b', fontSize: 13, margin: '-12px 0 16px' }}>
+            {addReg.error instanceof Error ? addReg.error.message : 'Fehler'}
+          </p>
+        )}
+
+        {/* Registration list */}
+        {registrations.length === 0 ? (
+          <p style={{ color: '#a6b0c3', fontSize: 13, margin: 0 }}>Noch keine Anmeldungen.</p>
+        ) : (
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr>
+                {['Athlet', 'Kategorie', 'Startnr.', 'Status', ''].map(h => (
+                  <th key={h} style={{ padding: '6px 8px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#6b7890', textAlign: 'left', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {(registrations as Registration[])
+                .sort((a, b) => (a.startNumber ?? '').localeCompare(b.startNumber ?? '', 'de', { numeric: true }))
+                .map(reg => {
+                  const athlete = (athletes as Athlete[]).find(a => a.id === reg.athleteId)
+                  const catName = reg.categoryId ? (categories as CompetitionCategory[]).find(c => c.id === reg.categoryId)?.name : null
+                  const td: React.CSSProperties = { padding: '10px 8px', fontSize: 13, color: '#e8ecf3', borderBottom: '1px solid rgba(255,255,255,0.05)' }
+                  const cellInput: React.CSSProperties = { background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 6, color: '#e8ecf3', fontSize: 13, padding: '4px 8px', width: '100%', boxSizing: 'border-box' }
+
+                  if (editingRegId === reg.id) {
+                    return (
+                      <tr key={reg.id} style={{ background: 'rgba(108,240,194,0.06)' }}>
+                        <td style={td}>{athlete ? `${athlete.lastName}, ${athlete.firstName}` : '—'}</td>
+                        <td style={{ padding: '6px 8px' }}>
+                          <select style={{ ...cellInput, cursor: 'pointer' }} value={editingReg.categoryId}
+                            onChange={e => setEditingReg(p => ({ ...p, categoryId: e.target.value }))}>
+                            <option value="">— keine —</option>
+                            {(categories as CompetitionCategory[]).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                          </select>
+                        </td>
+                        <td style={{ padding: '6px 8px' }}>
+                          <input style={{ ...cellInput, width: 80 }} value={editingReg.startNumber}
+                            onChange={e => setEditingReg(p => ({ ...p, startNumber: e.target.value }))} />
+                        </td>
+                        <td style={{ padding: '6px 8px' }}>
+                          <select style={{ ...cellInput, cursor: 'pointer' }} value={editingReg.status}
+                            onChange={e => setEditingReg(p => ({ ...p, status: e.target.value }))}>
+                            {STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                          </select>
+                        </td>
+                        <td style={td}>
+                          <div style={{ display: 'flex', gap: 6 }}>
+                            <PrimaryButton onClick={() => updateReg.mutate(reg.id)} disabled={updateReg.isPending} style={{ padding: '4px 10px', fontSize: 12 }}>
+                              {updateReg.isPending ? '…' : 'Speichern'}
+                            </PrimaryButton>
+                            <GhostButton onClick={() => setEditingRegId(null)} style={{ padding: '4px 10px', fontSize: 12 }}>Abbrechen</GhostButton>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  }
+
+                  return (
+                    <tr key={reg.id}
+                      onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.03)')}
+                      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                      <td style={{ ...td, fontWeight: 600 }}>{athlete ? `${athlete.lastName}, ${athlete.firstName}` : <span style={{ color: '#6b7890' }}>Unbekannt</span>}</td>
+                      <td style={td}>{catName ?? <span style={{ color: '#6b7890' }}>—</span>}</td>
+                      <td style={td}>{reg.startNumber ?? <span style={{ color: '#6b7890' }}>—</span>}</td>
+                      <td style={td}>
+                        <span style={{ color: STATUS_COLOR[reg.status] ?? '#a6b0c3', fontWeight: 600, fontSize: 12 }}>
+                          {STATUSES.find(s => s.value === reg.status)?.label ?? reg.status}
+                        </span>
+                      </td>
+                      <td style={td}>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          <GhostButton onClick={() => {
+                            setEditingRegId(reg.id)
+                            setEditingReg({ categoryId: reg.categoryId ?? '', startNumber: reg.startNumber ?? '', status: reg.status })
+                          }} style={{ padding: '4px 10px', fontSize: 12 }}>Bearbeiten</GhostButton>
+                          <DangerButton onClick={() => { if (confirm(`Anmeldung von "${athlete?.lastName ?? '?'}" wirklich entfernen?`)) deleteReg.mutate(reg.id) }} style={{ padding: '4px 10px', fontSize: 12 }}>Entfernen</DangerButton>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+            </tbody>
+          </table>
+        )}
       </Card>
 
       {/* Category Modal */}
