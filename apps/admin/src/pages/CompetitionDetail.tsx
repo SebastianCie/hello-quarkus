@@ -36,13 +36,14 @@ function routeToRow(r: Route): RouteRow {
 const COL = { number: 70, name: 160, sortOrder: 90, grade: 90, maxScore: 90, category: 160, actions: 130 }
 
 function RouteInlineRow({
-  row, onChange, onSave, onCancel, pending, categories,
+  row, onChange, onSave, onCancel, pending, error, categories,
 }: {
   row: RouteRow
   onChange: (r: RouteRow) => void
   onSave: () => void
   onCancel: () => void
   pending: boolean
+  error?: string | null
   categories: CompetitionCategory[]
 }) {
   const cellInput: React.CSSProperties = {
@@ -79,11 +80,14 @@ function RouteInlineRow({
         </select>
       </td>
       <td style={{ padding: '6px 8px', width: COL.actions }}>
-        <div style={{ display: 'flex', gap: 6 }}>
-          <PrimaryButton onClick={onSave} disabled={pending} style={{ padding: '4px 10px', fontSize: 12 }}>
-            {pending ? '…' : 'Speichern'}
-          </PrimaryButton>
-          <GhostButton onClick={onCancel} style={{ padding: '4px 10px', fontSize: 12 }}>Abbrechen</GhostButton>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <PrimaryButton onClick={onSave} disabled={pending} style={{ padding: '4px 10px', fontSize: 12 }}>
+              {pending ? '…' : 'Speichern'}
+            </PrimaryButton>
+            <GhostButton onClick={onCancel} style={{ padding: '4px 10px', fontSize: 12 }}>Abbrechen</GhostButton>
+          </div>
+          {error && <span style={{ color: '#ff5d6b', fontSize: 11 }}>{error}</span>}
         </div>
       </td>
     </tr>
@@ -272,7 +276,9 @@ export function CompetitionDetail() {
                   <RouteInlineRow key={route.id}
                     row={editingRow} onChange={setEditingRow}
                     onSave={() => updateRoute.mutate()} onCancel={cancelEdit}
-                    pending={updateRoute.isPending} categories={categories}
+                    pending={updateRoute.isPending}
+                    error={updateRoute.isError ? (updateRoute.error instanceof Error ? updateRoute.error.message : 'Fehler') : null}
+                    categories={categories}
                   />
                 ) : (
                   <tr key={route.id} style={{ transition: 'background 0.1s' }}
@@ -301,7 +307,9 @@ export function CompetitionDetail() {
                 <RouteInlineRow
                   row={newRow} onChange={setNewRow}
                   onSave={() => createRoute.mutate()} onCancel={cancelNew}
-                  pending={createRoute.isPending} categories={categories}
+                  pending={createRoute.isPending}
+                  error={createRoute.isError ? (createRoute.error instanceof Error ? createRoute.error.message : 'Fehler') : null}
+                  categories={categories}
                 />
               )}
             </tbody>

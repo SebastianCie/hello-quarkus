@@ -1,6 +1,8 @@
 package de.heim.apps.resource;
 
 import de.heim.apps.entity.Route;
+import jakarta.inject.Inject;
+import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceException;
 import jakarta.transaction.Transactional;
 import jakarta.ws.rs.*;
@@ -14,6 +16,9 @@ import java.util.UUID;
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 public class RouteResource {
+
+    @Inject
+    EntityManager em;
 
     @GET
     public List<Route> list(@QueryParam("compId") UUID compId) {
@@ -33,7 +38,7 @@ public class RouteResource {
     public Response create(Route entity) {
         entity.id = null;
         try {
-            entity.persist();
+            entity.persistAndFlush();
             return Response.status(201).entity(entity).build();
         } catch (PersistenceException e) {
             return duplicateError(e);
@@ -54,6 +59,7 @@ public class RouteResource {
         entity.sortOrder = data.sortOrder;
         entity.categoryId = data.categoryId;
         try {
+            em.flush();
             return Response.ok(entity).build();
         } catch (PersistenceException e) {
             return duplicateError(e);
