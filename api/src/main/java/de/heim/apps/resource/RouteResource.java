@@ -42,7 +42,7 @@ public class RouteResource {
         if (entity == null) return Response.status(404).build();
         entity.compId = data.compId;
         entity.routeNumber = data.routeNumber;
-        entity.discipline = data.discipline;
+        entity.name = data.name;
         entity.grade = data.grade;
         entity.maxScore = data.maxScore;
         entity.sortOrder = data.sortOrder;

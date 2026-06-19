@@ -18,7 +18,7 @@ public class Route extends PanacheEntityBase {
     @Column(name = "route_number")
     public String routeNumber;
 
-    public String discipline;
+    public String name;
 
     public String grade;
 

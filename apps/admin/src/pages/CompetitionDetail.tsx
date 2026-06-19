@@ -19,21 +19,21 @@ type CatForm = { name: string; gender: string; ageMin: string; ageMax: string; m
 const emptyCat = (): CatForm => ({ name: '', gender: '', ageMin: '', ageMax: '', maxParticipants: '' })
 
 // ── Route inline row ──────────────────────────────────────────────────────────
-type RouteRow = { routeNumber: string; discipline: string; grade: string; maxScore: string; sortOrder: string; categoryId: string }
-const emptyRow = (): RouteRow => ({ routeNumber: '', discipline: '', grade: '', maxScore: '', sortOrder: '', categoryId: '' })
+type RouteRow = { routeNumber: string; name: string; sortOrder: string; grade: string; maxScore: string; categoryId: string }
+const emptyRow = (): RouteRow => ({ routeNumber: '', name: '', sortOrder: '', grade: '', maxScore: '', categoryId: '' })
 
 function routeToRow(r: Route): RouteRow {
   return {
     routeNumber: r.routeNumber ?? '',
-    discipline: r.discipline ?? '',
+    name: r.name ?? '',
+    sortOrder: r.sortOrder?.toString() ?? '',
     grade: r.grade ?? '',
     maxScore: r.maxScore?.toString() ?? '',
-    sortOrder: r.sortOrder?.toString() ?? '',
     categoryId: r.categoryId ?? '',
   }
 }
 
-const COL = { number: 70, discipline: 120, grade: 90, maxScore: 90, category: 160, actions: 130 }
+const COL = { number: 70, name: 160, sortOrder: 90, grade: 90, maxScore: 90, category: 160, actions: 130 }
 
 function RouteInlineRow({
   row, onChange, onSave, onCancel, pending, categories,
@@ -55,9 +55,13 @@ function RouteInlineRow({
         <input style={cellInput} value={row.routeNumber} placeholder="#"
           onChange={e => onChange({ ...row, routeNumber: e.target.value })} />
       </td>
-      <td style={{ padding: '6px 8px', width: COL.discipline }}>
-        <input style={cellInput} value={row.discipline} placeholder="z.B. Boulder"
-          onChange={e => onChange({ ...row, discipline: e.target.value })} />
+      <td style={{ padding: '6px 8px', width: COL.name }}>
+        <input style={cellInput} value={row.name} placeholder="Name"
+          onChange={e => onChange({ ...row, name: e.target.value })} />
+      </td>
+      <td style={{ padding: '6px 8px', width: COL.sortOrder }}>
+        <input style={cellInput} type="number" value={row.sortOrder} placeholder="—"
+          onChange={e => onChange({ ...row, sortOrder: e.target.value })} />
       </td>
       <td style={{ padding: '6px 8px', width: COL.grade }}>
         <input style={cellInput} value={row.grade} placeholder="z.B. 6b"
@@ -155,7 +159,7 @@ export function CompetitionDetail() {
     return {
       compId: id!,
       routeNumber: row.routeNumber || null,
-      discipline: row.discipline || null,
+      name: row.name || null,
       grade: row.grade || null,
       maxScore: row.maxScore ? parseInt(row.maxScore) : null,
       sortOrder: row.sortOrder ? parseInt(row.sortOrder) : null,
@@ -247,7 +251,8 @@ export function CompetitionDetail() {
             <thead>
               <tr>
                 <th style={thStyle}>Nr.</th>
-                <th style={thStyle}>Disziplin</th>
+                <th style={thStyle}>Name</th>
+                <th style={thStyle}>Reihenfolge</th>
                 <th style={thStyle}>Grad</th>
                 <th style={thStyle}>Max. Pkt.</th>
                 <th style={thStyle}>Kategorie</th>
@@ -257,7 +262,7 @@ export function CompetitionDetail() {
             <tbody>
               {routes.length === 0 && !newRow && (
                 <tr>
-                  <td colSpan={6} style={{ ...tdStyle, color: '#a6b0c3', textAlign: 'center', padding: '20px 8px' }}>
+                  <td colSpan={7} style={{ ...tdStyle, color: '#a6b0c3', textAlign: 'center', padding: '20px 8px' }}>
                     Noch keine Routen angelegt.
                   </td>
                 </tr>
@@ -273,8 +278,9 @@ export function CompetitionDetail() {
                   <tr key={route.id} style={{ transition: 'background 0.1s' }}
                     onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.03)')}
                     onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                    <td style={tdStyle}>{route.routeNumber ? `#${route.routeNumber}` : <span style={{ color: '#6b7890' }}>—</span>}</td>
-                    <td style={tdStyle}>{route.discipline ?? <span style={{ color: '#6b7890' }}>—</span>}</td>
+                    <td style={tdStyle}>{route.routeNumber ?? <span style={{ color: '#6b7890' }}>—</span>}</td>
+                    <td style={tdStyle}>{route.name ?? <span style={{ color: '#6b7890' }}>—</span>}</td>
+                    <td style={tdStyle}>{route.sortOrder != null ? route.sortOrder : <span style={{ color: '#6b7890' }}>—</span>}</td>
                     <td style={tdStyle}>{route.grade ?? <span style={{ color: '#6b7890' }}>—</span>}</td>
                     <td style={tdStyle}>{route.maxScore != null ? route.maxScore : <span style={{ color: '#6b7890' }}>—</span>}</td>
                     <td style={tdStyle}>

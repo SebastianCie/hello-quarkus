@@ -77,7 +77,7 @@ export type Route = {
   id: string
   compId: string
   routeNumber: string | null
-  discipline: string | null
+  name: string | null
   grade: string | null
   maxScore: number | null
   sortOrder: number | null
