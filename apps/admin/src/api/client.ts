@@ -61,6 +61,25 @@ export type Competition = {
   selfRegistration: boolean
   registrationOpensAt: string | null
   registrationClosesAt: string | null
+  registrationToken?: string | null
+  hallMapAvailable?: boolean
+  hallMapContentType?: string | null
+}
+
+export type CompetitionPublicView = {
+  competition: Competition
+  categories: CompetitionCategory[]
+}
+
+export type SelfRegisterPayload = {
+  firstName: string
+  lastName: string
+  dateOfBirth: string | null
+  gender: string | null
+  club: string | null
+  nation: string | null
+  licenseNumber: string | null
+  categoryId: string | null
 }
 
 export type CompetitionCategory = {
@@ -105,6 +124,15 @@ export type Athlete = {
   club: string | null
   nation: string | null
   licenseNumber: string | null
+}
+
+export type ScoringConfig = {
+  id: string
+  compId: string
+  eventType: string
+  points: number
+  label: string | null
+  sortOrder: number
 }
 
 export type SetupRequest = {
@@ -155,6 +183,25 @@ export const api = {
       request<Competition>(`/competitions/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     delete: (id: string) =>
       request<void>(`/competitions/${id}`, { method: 'DELETE' }),
+    generateToken: (id: string) =>
+      request<{ token: string }>(`/competitions/${id}/generate-token`, { method: 'POST' }),
+    byToken: (token: string) =>
+      request<CompetitionPublicView>(`/competitions/by-token/${token}`),
+    selfRegister: (token: string, data: SelfRegisterPayload) =>
+      request<unknown>(`/competitions/by-token/${token}/register`, { method: 'POST', body: JSON.stringify(data) }),
+    hallMapUrl: (id: string) => `${BASE}/competitions/${id}/hall-map`,
+    uploadHallMap: async (id: string, file: File): Promise<void> => {
+      const form = new FormData()
+      form.append('file', file)
+      const res = await fetch(`${BASE}/competitions/${id}/hall-map`, {
+        method: 'POST',
+        headers: authHeader(),
+        body: form,
+      })
+      if (!res.ok) throw new Error(await res.text().catch(() => res.statusText))
+    },
+    deleteHallMap: (id: string) =>
+      request<void>(`/competitions/${id}/hall-map`, { method: 'DELETE' }),
   },
 
   categories: {
@@ -188,6 +235,19 @@ export const api = {
       request<Registration>(`/registrations/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     delete: (id: string) =>
       request<void>(`/registrations/${id}`, { method: 'DELETE' }),
+  },
+
+  scoringConfigs: {
+    list: (compId: string) =>
+      request<ScoringConfig[]>(`/scoring-configs?compId=${compId}`),
+    create: (data: Omit<ScoringConfig, 'id' | 'sortOrder'>) =>
+      request<ScoringConfig>('/scoring-configs', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: Partial<ScoringConfig>) =>
+      request<ScoringConfig>(`/scoring-configs/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    delete: (id: string) =>
+      request<void>(`/scoring-configs/${id}`, { method: 'DELETE' }),
+    replace: (compId: string, rules: Omit<ScoringConfig, 'id' | 'sortOrder'>[]) =>
+      request<ScoringConfig[]>(`/scoring-configs/replace?compId=${compId}`, { method: 'POST', body: JSON.stringify(rules) }),
   },
 
   athletes: {

@@ -44,10 +44,10 @@ public class RegistrationResource {
     public Response update(@PathParam("id") UUID id, Registration data) {
         Registration entity = Registration.findById(id);
         if (entity == null) return Response.status(404).build();
-        entity.compId = data.compId;
-        entity.athleteId = data.athleteId;
+        if (data.compId != null) entity.compId = data.compId;
+        if (data.athleteId != null) entity.athleteId = data.athleteId;
         entity.categoryId = data.categoryId;
-        entity.status = data.status;
+        if (data.status != null) entity.status = data.status;
         entity.startNumber = data.startNumber;
         entity.confirmedAt = data.confirmedAt;
         return Response.ok(entity).build();

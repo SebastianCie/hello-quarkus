@@ -18,6 +18,13 @@ const FAQ: Section[] = [
 • Beendet – Der Wettkampf ist abgeschlossen. Ergebnisse sind final und können nicht mehr verändert werden.`,
       },
       {
+        q: 'Was bedeutet das Feld "Format" bei einem Wettkampf?',
+        a: `Das Format ist ein reines Informationsfeld und hat keinen Einfluss auf die Wettkampflogik. Es dient dazu, den Charakter des Wettkampfs auf einen Blick erkennbar zu machen:
+
+• Spaßwettkampf – Lockere Veranstaltung ohne offizielle Wertung, z.B. Vereinsabende, Trainingswettkämpfe oder Events für Einsteiger.
+• Offizieller Wettkampf – Formelle Veranstaltung mit offizieller Ergebnisliste, z.B. Vereinsmeisterschaften oder Ligawettkämpfe.`,
+      },
+      {
         q: 'Wann sollte ich Start- und Enddatum setzen?',
         a: 'Start- und Enddatum beschreiben den Zeitraum des Wettkampfs selbst (z.B. Wettkampftag 09:00–18:00 Uhr). Die Anmeldezeitraum wird separat über "Selbstregistrierung" mit eigenem Öffnungs- und Schlussdatum gesteuert.',
       },

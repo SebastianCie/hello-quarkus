@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { api, type CompetitionCategory, type Route, type Registration, type Athlete } from '@/api/client'
+import { api, type CompetitionCategory, type Route, type Registration, type Athlete, type ScoringConfig } from '@/api/client'
 import {
   Card, SectionLabel, Field, Input, Select, PrimaryButton, GhostButton, DangerButton, Modal, StatusBadge
 } from '@/components/FormUI'
@@ -88,6 +88,374 @@ function RouteInlineRow({
         {error && <span style={{ color: '#ff5d6b', fontSize: 11, display: 'block', marginTop: 4 }}>{error}</span>}
       </td>
     </tr>
+  )
+}
+
+const EVENT_TYPES = [
+  { value: 'FLASH',             label: 'Flash (1. Versuch)',    color: '#ffd700' },
+  { value: 'TOP',               label: 'Top',                   color: '#6cf0c2' },
+  { value: 'ZONE',              label: 'Zone',                  color: '#ffc400' },
+  { value: 'ZONE_1',            label: 'Zone 1 (untere Zone)',  color: '#ffc400' },
+  { value: 'ZONE_2',            label: 'Zone 2 (obere Zone)',   color: '#ffaa00' },
+  { value: 'ATTEMPT_DEDUCTION', label: 'Abzug pro Versuch',     color: '#ff5d6b' },
+]
+
+const PRESETS: Record<string, { label: string; rules: Omit<ScoringConfig, 'id' | 'sortOrder'>[] }> = {
+  punkteAbzug: {
+    label: 'Punkte + Abzug',
+    rules: [
+      { compId: '', eventType: 'FLASH', points: 25, label: null },
+      { compId: '', eventType: 'ZONE',  points: 10, label: null },
+      { compId: '', eventType: 'ATTEMPT_DEDUCTION', points: -0.1, label: null },
+    ],
+  },
+  punkteFix: {
+    label: 'Punkte fix (kein Abzug)',
+    rules: [
+      { compId: '', eventType: 'FLASH', points: 30, label: null },
+      { compId: '', eventType: 'TOP',   points: 25, label: null },
+      { compId: '', eventType: 'ZONE',  points: 10, label: null },
+    ],
+  },
+  zweiZonen: {
+    label: 'Zwei Zonen',
+    rules: [
+      { compId: '', eventType: 'FLASH',  points: 30, label: null },
+      { compId: '', eventType: 'TOP',    points: 25, label: null },
+      { compId: '', eventType: 'ZONE_2', points: 15, label: null },
+      { compId: '', eventType: 'ZONE_1', points: 5,  label: null },
+    ],
+  },
+}
+
+const emptyRuleForm = () => ({ eventType: 'FLASH', points: '', label: '' })
+
+function ScoringSection({ compId }: { compId: string }) {
+  const qc = useQueryClient()
+  const [adding, setAdding] = useState(false)
+  const [form, setForm] = useState(emptyRuleForm())
+
+  const { data: rules = [] } = useQuery({
+    queryKey: ['scoring-configs', compId],
+    queryFn: () => api.scoringConfigs.list(compId),
+  })
+
+  const createRule = useMutation({
+    mutationFn: () => api.scoringConfigs.create({
+      compId,
+      eventType: form.eventType,
+      points: parseFloat(form.points) || 0,
+      label: form.label.trim() || null,
+    }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['scoring-configs', compId] })
+      setForm(emptyRuleForm())
+      setAdding(false)
+    },
+  })
+
+  const deleteRule = useMutation({
+    mutationFn: (id: string) => api.scoringConfigs.delete(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['scoring-configs', compId] }),
+  })
+
+  const applyPreset = useMutation({
+    mutationFn: (key: string) => {
+      const preset = PRESETS[key]
+      const rules = preset.rules.map(r => ({ ...r, compId }))
+      return api.scoringConfigs.replace(compId, rules)
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['scoring-configs', compId] })
+      setAdding(false)
+    },
+  })
+
+  const inputStyle: React.CSSProperties = {
+    background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)',
+    borderRadius: 6, color: '#e8ecf3', fontSize: 13, padding: '6px 10px',
+    boxSizing: 'border-box',
+  }
+
+  return (
+    <Card style={{ marginTop: 24 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: rules.length > 0 || adding ? 16 : 0 }}>
+        <SectionLabel>Bewertung</SectionLabel>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+          {Object.entries(PRESETS).map(([key, preset]) => (
+            <GhostButton key={key}
+              onClick={() => { if (rules.length === 0 || confirm(`Alle bestehenden Regeln durch Preset "${preset.label}" ersetzen?`)) applyPreset.mutate(key) }}
+              disabled={applyPreset.isPending}
+              style={{ fontSize: 11, padding: '4px 10px', color: '#a6b0c3' }}>
+              {preset.label}
+            </GhostButton>
+          ))}
+          {!adding && <PrimaryButton onClick={() => setAdding(true)}>+ Regel</PrimaryButton>}
+        </div>
+      </div>
+
+      {rules.length === 0 && !adding && (
+        <p style={{ color: '#a6b0c3', fontSize: 13, margin: 0 }}>
+          Noch keine Bewertungsregeln konfiguriert. Wähle ein Preset oder füge Regeln manuell hinzu.
+        </p>
+      )}
+
+      {rules.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: adding ? 16 : 0 }}>
+          {(rules as ScoringConfig[]).map(rule => {
+            const def = EVENT_TYPES.find(e => e.value === rule.eventType)
+            const isNeg = rule.points < 0
+            return (
+              <div key={rule.id} style={{
+                display: 'flex', alignItems: 'center', gap: 10,
+                background: 'rgba(255,255,255,0.04)', borderRadius: 8, padding: '8px 12px',
+              }}>
+                <span style={{
+                  fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 999,
+                  background: (def?.color ?? '#a6b0c3') + '22',
+                  color: def?.color ?? '#a6b0c3',
+                  letterSpacing: '0.04em', flexShrink: 0,
+                }}>
+                  {def?.label ?? rule.eventType}
+                </span>
+                {rule.label && (
+                  <span style={{ fontSize: 13, color: '#a6b0c3' }}>{rule.label}</span>
+                )}
+                <span style={{ marginLeft: 'auto', fontSize: 15, fontWeight: 700, color: isNeg ? '#ff5d6b' : '#6cf0c2', flexShrink: 0 }}>
+                  {isNeg ? '' : '+'}{rule.points} Pkt.
+                </span>
+                <DangerButton
+                  onClick={() => deleteRule.mutate(rule.id)}
+                  disabled={deleteRule.isPending}
+                  style={{ padding: '3px 9px', fontSize: 12 }}>
+                  ×
+                </DangerButton>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {adding && (
+        <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', flexWrap: 'wrap', background: 'rgba(108,240,194,0.05)', borderRadius: 8, padding: '12px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <span style={{ fontSize: 11, color: '#6b7890', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Ereignis</span>
+            <select style={{ ...inputStyle, cursor: 'pointer' }} value={form.eventType}
+              onChange={e => setForm(p => ({ ...p, eventType: e.target.value }))}>
+              {EVENT_TYPES.map(et => <option key={et.value} value={et.value}>{et.label}</option>)}
+            </select>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <span style={{ fontSize: 11, color: '#6b7890', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Punkte</span>
+            <input style={{ ...inputStyle, width: 90 }} type="number" step="0.1" placeholder="z.B. 25"
+              value={form.points} onChange={e => setForm(p => ({ ...p, points: e.target.value }))} />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minWidth: 120 }}>
+            <span style={{ fontSize: 11, color: '#6b7890', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Label (optional)</span>
+            <input style={{ ...inputStyle, width: '100%' }} placeholder='z.B. "Untere Zone"'
+              value={form.label} onChange={e => setForm(p => ({ ...p, label: e.target.value }))} />
+          </div>
+          <PrimaryButton onClick={() => createRule.mutate()} disabled={createRule.isPending || !form.points}>
+            {createRule.isPending ? '…' : 'Hinzufügen'}
+          </PrimaryButton>
+          <GhostButton onClick={() => { setAdding(false); setForm(emptyRuleForm()) }}>Abbrechen</GhostButton>
+          {createRule.isError && (
+            <span style={{ color: '#ff5d6b', fontSize: 12, width: '100%' }}>
+              {createRule.error instanceof Error ? createRule.error.message : 'Fehler'}
+            </span>
+          )}
+        </div>
+      )}
+    </Card>
+  )
+}
+
+function HallMapSection({ compId, hasMap, onChanged }: {
+  compId: string
+  hasMap: boolean
+  onChanged: () => void
+}) {
+  const qc = useQueryClient()
+  const inputRef = React.useRef<HTMLInputElement>(null)
+  const [uploading, setUploading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const mapUrl = api.competitions.hallMapUrl(compId)
+
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (!file.type.startsWith('image/')) { setError('Nur Bilddateien erlaubt'); return }
+    if (file.size > 10 * 1024 * 1024) { setError('Maximale Dateigröße: 10 MB'); return }
+    setError(null)
+    setUploading(true)
+    try {
+      await api.competitions.uploadHallMap(compId, file)
+      qc.invalidateQueries({ queryKey: ['competition', compId] })
+      onChanged()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Upload fehlgeschlagen')
+    } finally {
+      setUploading(false)
+      e.target.value = ''
+    }
+  }
+
+  const remove = useMutation({
+    mutationFn: () => api.competitions.deleteHallMap(compId),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['competition', compId] }); onChanged() },
+  })
+
+  return (
+    <Card style={{ marginTop: 24 }}>
+      <SectionLabel>Hallenmap</SectionLabel>
+      <input ref={inputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFile} />
+
+      {hasMap ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <img
+            src={mapUrl}
+            alt="Hallenmap"
+            style={{ width: '100%', borderRadius: 10, border: '1px solid rgba(255,255,255,0.1)', maxHeight: 400, objectFit: 'contain', background: '#0a0f1e' }}
+          />
+          <div style={{ display: 'flex', gap: 10 }}>
+            <GhostButton onClick={() => inputRef.current?.click()} disabled={uploading}>
+              {uploading ? 'Lädt hoch…' : 'Ersetzen'}
+            </GhostButton>
+            <DangerButton onClick={() => remove.mutate()} disabled={remove.isPending}>
+              {remove.isPending ? 'Löscht…' : 'Löschen'}
+            </DangerButton>
+          </div>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <p style={{ color: '#a6b0c3', fontSize: 14, margin: 0 }}>
+            Noch keine Hallenmap hinterlegt. Lade ein Bild hoch, das in der Athleten-App angezeigt wird.
+          </p>
+          <div>
+            <PrimaryButton onClick={() => inputRef.current?.click()} disabled={uploading}>
+              {uploading ? 'Lädt hoch…' : 'Bild hochladen'}
+            </PrimaryButton>
+          </div>
+        </div>
+      )}
+
+      {error && <p style={{ color: '#ff5d6b', fontSize: 13, margin: '8px 0 0' }}>{error}</p>}
+    </Card>
+  )
+}
+
+function TokenSection({
+  compId, token, selfRegistration, registrationOpensAt, registrationClosesAt, onGenerated,
+}: {
+  compId: string
+  token: string | null
+  selfRegistration: boolean
+  registrationOpensAt: string | null
+  registrationClosesAt: string | null
+  onGenerated: () => void
+}) {
+  const [copied, setCopied] = useState(false)
+
+  const generateToken = useMutation({
+    mutationFn: () => api.competitions.generateToken(compId),
+    onSuccess: onGenerated,
+  })
+
+  const registerUrl = token ? `${window.location.origin.replace(':3000', ':3001')}/${token}` : null
+
+  function copy() {
+    if (!registerUrl) return
+    navigator.clipboard.writeText(registerUrl)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  function fmtDate(iso: string | null) {
+    if (!iso) return null
+    return new Date(iso).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' })
+  }
+
+  return (
+    <Card style={{ marginTop: 24 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+        <SectionLabel>Selbstregistrierung (QR-Code / Link)</SectionLabel>
+        <span style={{
+          fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 999,
+          background: selfRegistration ? 'rgba(108,240,194,0.12)' : 'rgba(255,255,255,0.07)',
+          color: selfRegistration ? '#6cf0c2' : '#6b7890',
+          letterSpacing: '0.06em', textTransform: 'uppercase',
+        }}>
+          {selfRegistration ? 'Aktiv' : 'Inaktiv'}
+        </span>
+      </div>
+
+      {!selfRegistration ? (
+        <div style={{
+          background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
+          borderRadius: 10, padding: '14px 16px',
+          display: 'flex', alignItems: 'center', gap: 10,
+        }}>
+          <span style={{ fontSize: 18 }}>🔒</span>
+          <p style={{ fontSize: 13, color: '#6b7890', margin: 0 }}>
+            Für diesen Wettkampf ist keine Selbstregistrierung aktiviert.
+            Im Dialog <strong style={{ color: '#a6b0c3' }}>„Wettkampf bearbeiten"</strong> einschalten.
+          </p>
+        </div>
+      ) : token ? (
+        <div>
+          {(registrationOpensAt || registrationClosesAt) && (
+            <p style={{ fontSize: 12, color: '#a6b0c3', margin: '0 0 12px' }}>
+              Anmeldezeitraum:
+              {registrationOpensAt ? ` ab ${fmtDate(registrationOpensAt)}` : ' —'}
+              {registrationClosesAt ? ` bis ${fmtDate(registrationClosesAt)}` : ''}
+            </p>
+          )}
+          <p style={{ fontSize: 13, color: '#a6b0c3', margin: '0 0 12px' }}>
+            Diesen Link als QR-Code ausdrucken und in der Halle aufhängen. Athleten können sich direkt anmelden.
+          </p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <code style={{
+              background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)',
+              borderRadius: 8, padding: '8px 14px', fontSize: 13, color: '#6cf0c2',
+              letterSpacing: '0.03em', wordBreak: 'break-all',
+            }}>
+              {registerUrl}
+            </code>
+            <GhostButton onClick={copy} style={{ whiteSpace: 'nowrap' }}>
+              {copied ? '✓ Kopiert' : 'Link kopieren'}
+            </GhostButton>
+            <GhostButton
+              onClick={() => { if (confirm('Neuen Token generieren? Der alte Link wird ungültig.')) generateToken.mutate() }}
+              style={{ fontSize: 12, padding: '6px 12px', color: '#a6b0c3' }}
+            >
+              Neu generieren
+            </GhostButton>
+          </div>
+          <p style={{ fontSize: 11, color: '#6b7890', margin: '10px 0 0' }}>Token: <code style={{ color: '#a6b0c3' }}>{token}</code></p>
+        </div>
+      ) : (
+        <div>
+          {(registrationOpensAt || registrationClosesAt) && (
+            <p style={{ fontSize: 12, color: '#a6b0c3', margin: '0 0 12px' }}>
+              Anmeldezeitraum:
+              {registrationOpensAt ? ` ab ${fmtDate(registrationOpensAt)}` : ' —'}
+              {registrationClosesAt ? ` bis ${fmtDate(registrationClosesAt)}` : ''}
+            </p>
+          )}
+          <p style={{ fontSize: 13, color: '#a6b0c3', margin: '0 0 14px' }}>
+            Noch kein Registrierungslink vorhanden. Einen Link generieren und als QR-Code im Wettkampfraum aufhängen.
+          </p>
+          <PrimaryButton onClick={() => generateToken.mutate()} disabled={generateToken.isPending}>
+            {generateToken.isPending ? 'Generiert…' : 'Registrierungslink generieren'}
+          </PrimaryButton>
+          {generateToken.isError && (
+            <p style={{ color: '#ff5d6b', fontSize: 13, margin: '10px 0 0' }}>
+              {generateToken.error instanceof Error ? generateToken.error.message : 'Fehler'}
+            </p>
+          )}
+        </div>
+      )}
+    </Card>
   )
 }
 
@@ -206,6 +574,38 @@ export function CompetitionDetail() {
   })
 
   // ── Registrations ───────────────────────────────────────────────────────────
+  type RegSortCol = 'athlete' | 'category' | 'startNumber' | 'status'
+  const [regSortCol, setRegSortCol] = useState<RegSortCol>('startNumber')
+  const [regSortDir, setRegSortDir] = useState<'asc' | 'desc'>('asc')
+
+  function toggleRegSort(col: RegSortCol) {
+    if (regSortCol === col) setRegSortDir(d => d === 'asc' ? 'desc' : 'asc')
+    else { setRegSortCol(col); setRegSortDir('asc') }
+  }
+
+  const sortedRegistrations = useMemo(() => {
+    return [...(registrations as Registration[])].sort((a, b) => {
+      let av = '', bv = ''
+      if (regSortCol === 'athlete') {
+        const aa = (athletes as Athlete[]).find(x => x.id === a.athleteId)
+        const ba = (athletes as Athlete[]).find(x => x.id === b.athleteId)
+        av = aa ? `${aa.lastName} ${aa.firstName}` : ''
+        bv = ba ? `${ba.lastName} ${ba.firstName}` : ''
+      } else if (regSortCol === 'category') {
+        av = (categories as CompetitionCategory[]).find(c => c.id === a.categoryId)?.name ?? ''
+        bv = (categories as CompetitionCategory[]).find(c => c.id === b.categoryId)?.name ?? ''
+      } else if (regSortCol === 'startNumber') {
+        return regSortDir === 'asc'
+          ? (a.startNumber ?? '').localeCompare(b.startNumber ?? '', 'de', { numeric: true })
+          : (b.startNumber ?? '').localeCompare(a.startNumber ?? '', 'de', { numeric: true })
+      } else if (regSortCol === 'status') {
+        av = a.status; bv = b.status
+      }
+      const cmp = av.localeCompare(bv, 'de')
+      return regSortDir === 'asc' ? cmp : -cmp
+    })
+  }, [registrations, regSortCol, regSortDir, athletes, categories])
+
   const STATUSES = [
     { value: 'PENDING', label: 'Ausstehend' },
     { value: 'CONFIRMED', label: 'Bestätigt' },
@@ -428,7 +828,7 @@ export function CompetitionDetail() {
 
       {/* Registrations */}
       <Card style={{ marginTop: 24 }}>
-        <SectionLabel style={{ marginBottom: 16 }}>Anmeldungen</SectionLabel>
+        <div style={{ marginBottom: 16 }}><SectionLabel>Anmeldungen</SectionLabel></div>
 
         {/* Add form */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 120px auto', gap: 10, marginBottom: 20, alignItems: 'flex-end' }}>
@@ -490,15 +890,26 @@ export function CompetitionDetail() {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr>
-                {['Athlet', 'Kategorie', 'Startnr.', 'Status', ''].map(h => (
-                  <th key={h} style={{ padding: '6px 8px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#6b7890', textAlign: 'left', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>{h}</th>
+                {([
+                  { col: 'athlete' as RegSortCol, label: 'Athlet' },
+                  { col: 'category' as RegSortCol, label: 'Kategorie' },
+                  { col: 'startNumber' as RegSortCol, label: 'Startnr.' },
+                  { col: 'status' as RegSortCol, label: 'Status' },
+                ] as const).map(({ col, label }) => (
+                  <th key={col} onClick={() => toggleRegSort(col)} style={{
+                    padding: '6px 8px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase',
+                    letterSpacing: '0.08em', textAlign: 'left', borderBottom: '1px solid rgba(255,255,255,0.08)',
+                    cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap',
+                    color: regSortCol === col ? '#6cf0c2' : '#6b7890',
+                  }}>
+                    {label}{regSortCol === col ? (regSortDir === 'asc' ? ' ↑' : ' ↓') : ''}
+                  </th>
                 ))}
+                <th style={{ padding: '6px 8px', borderBottom: '1px solid rgba(255,255,255,0.08)' }} />
               </tr>
             </thead>
             <tbody>
-              {(registrations as Registration[])
-                .sort((a, b) => (a.startNumber ?? '').localeCompare(b.startNumber ?? '', 'de', { numeric: true }))
-                .map(reg => {
+              {sortedRegistrations.map(reg => {
                   const athlete = (athletes as Athlete[]).find(a => a.id === reg.athleteId)
                   const catName = reg.categoryId ? (categories as CompetitionCategory[]).find(c => c.id === reg.categoryId)?.name : null
                   const td: React.CSSProperties = { padding: '10px 8px', fontSize: 13, color: '#e8ecf3', borderBottom: '1px solid rgba(255,255,255,0.05)' }
@@ -565,6 +976,24 @@ export function CompetitionDetail() {
           </table>
         )}
       </Card>
+
+      {/* Self-registration link */}
+      <TokenSection
+        compId={id!}
+        token={comp.registrationToken ?? null}
+        selfRegistration={comp.selfRegistration}
+        registrationOpensAt={comp.registrationOpensAt ?? null}
+        registrationClosesAt={comp.registrationClosesAt ?? null}
+        onGenerated={() => qc.invalidateQueries({ queryKey: ['competition', id] })}
+      />
+
+      <ScoringSection compId={id!} />
+
+      <HallMapSection
+        compId={id!}
+        hasMap={comp.hallMapAvailable ?? false}
+        onChanged={() => qc.invalidateQueries({ queryKey: ['competition', id] })}
+      />
 
       {/* Category Modal */}
       {catModal && (

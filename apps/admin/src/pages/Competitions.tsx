@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { api, type Competition, type Location } from '@/api/client'
 import {
-  Card, SectionLabel, Field, Input, Select, PrimaryButton, GhostButton, DangerButton, Modal, StatusBadge
+  Card, Field, Input, Select, PrimaryButton, GhostButton, DangerButton, Modal, StatusBadge
 } from '@/components/FormUI'
 
 function slugify(v: string) {
@@ -18,9 +18,8 @@ const DISCIPLINES = [
   { value: 'SPEED', label: 'Speed' },
 ]
 const FORMATS = [
-  { value: 'FLASH', label: 'Flash' },
-  { value: 'ON_SIGHT', label: 'On-Sight' },
-  { value: 'REDPOINT', label: 'Redpoint' },
+  { value: 'FUN', label: 'Spaßwettkampf' },
+  { value: 'OFFICIAL', label: 'Offizieller Wettkampf' },
 ]
 const STATUSES = [
   { value: 'DRAFT', label: 'Entwurf' },
@@ -36,7 +35,7 @@ type CompForm = {
 }
 
 const emptyForm = (): CompForm => ({
-  name: '', slug: '', discipline: 'BOULDERN', format: 'FLASH', status: 'DRAFT',
+  name: '', slug: '', discipline: 'BOULDERN', format: 'FUN', status: 'DRAFT',
   startDate: '', endDate: '', venue: '', locationId: '', selfRegistration: false,
   registrationOpensAt: '', registrationClosesAt: '',
 })

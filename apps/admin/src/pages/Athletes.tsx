@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api, type Athlete } from '@/api/client'
-import { SectionLabel, PrimaryButton, GhostButton, DangerButton } from '@/components/FormUI'
+import { PrimaryButton, GhostButton, DangerButton } from '@/components/FormUI'
 
 const GENDERS = [
   { value: '', label: '—' },

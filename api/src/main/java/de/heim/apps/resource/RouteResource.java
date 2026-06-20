@@ -21,7 +21,11 @@ public class RouteResource {
     EntityManager em;
 
     @GET
-    public List<Route> list(@QueryParam("compId") UUID compId) {
+    public List<Route> list(@QueryParam("compId") UUID compId,
+                            @QueryParam("categoryId") UUID categoryId) {
+        if (compId != null && categoryId != null)
+            return Route.list("compId = ?1 and (categoryId = ?2 or categoryId is null)",
+                compId, categoryId);
         if (compId != null) return Route.list("compId", compId);
         return Route.listAll();
     }

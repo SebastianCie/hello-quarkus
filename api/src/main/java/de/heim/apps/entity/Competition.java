@@ -51,6 +51,20 @@ public class Competition extends PanacheEntityBase {
     @Column(name = "registration_closes_at")
     public OffsetDateTime registrationClosesAt;
 
+    @Column(name = "registration_token")
+    public String registrationToken;
+
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    @Column(name = "hall_map")
+    public byte[] hallMap;
+
+    @Column(name = "hall_map_content_type")
+    public String hallMapContentType;
+
+    public boolean isHallMapAvailable() {
+        return hallMap != null && hallMap.length > 0;
+    }
+
     @Column(name = "created_at")
     public OffsetDateTime createdAt = OffsetDateTime.now();
 }

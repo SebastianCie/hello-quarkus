@@ -1,17 +1,54 @@
 package de.heim.apps.resource;
 
 import de.heim.apps.entity.Athlete;
+import de.heim.apps.entity.Competition;
+import de.heim.apps.entity.CompetitionCategory;
+import de.heim.apps.entity.Registration;
+import io.quarkus.security.identity.SecurityIdentity;
+import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Path("/api/v1/athletes")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 public class AthleteResource {
+
+    @Inject
+    SecurityIdentity identity;
+
+    @GET
+    @Path("/me")
+    public Response me() {
+        if (identity.isAnonymous()) {
+            return Response.status(401).entity(Map.of("message", "Nicht eingeloggt")).build();
+        }
+        UUID userId = UUID.fromString(identity.getPrincipal().getName());
+        Athlete athlete = Athlete.find("userId", userId).firstResult();
+        if (athlete == null) {
+            return Response.status(404).entity(Map.of("message", "Kein Athletenprofil gefunden")).build();
+        }
+        List<Registration> regs = Registration.list("athleteId", athlete.id);
+        List<Map<String, Object>> activeRegistrations = regs.stream()
+            .map(reg -> {
+                Competition comp = Competition.findById(reg.compId);
+                if (comp == null || !"ACTIVE".equals(comp.status)) return null;
+                CompetitionCategory cat = reg.categoryId != null
+                    ? CompetitionCategory.findById(reg.categoryId) : null;
+                Map<String, Object> entry = new HashMap<>();
+                entry.put("registration", reg);
+                entry.put("competition", comp);
+                entry.put("category", cat);
+                return entry;
+            })
+            .filter(Objects::nonNull)
+            .collect(Collectors.toList());
+        return Response.ok(Map.of("athlete", athlete, "registrations", activeRegistrations)).build();
+    }
 
     @GET
     public List<Athlete> list(@QueryParam("orgId") UUID orgId) {

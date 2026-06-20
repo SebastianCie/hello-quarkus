@@ -51,6 +51,25 @@ public class ScoreResource {
         return Response.ok(entity).build();
     }
 
+    @PUT
+    @Path("/upsert")
+    @Transactional
+    public Response upsert(Score data) {
+        Score existing = Score.find("registrationId = ?1 and routeId = ?2",
+                data.registrationId, data.routeId).firstResult();
+        if (existing != null) {
+            existing.attempts = data.attempts;
+            existing.topped = data.topped;
+            existing.zoned = data.zoned;
+            existing.bonusPoints = data.bonusPoints;
+            existing.finalScore = data.finalScore;
+            return Response.ok(existing).build();
+        }
+        data.id = null;
+        data.persist();
+        return Response.status(201).entity(data).build();
+    }
+
     @DELETE
     @Path("/{id}")
     @Transactional
