@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { api, type CompetitionCategory, type Route, type Registration, type Athlete, type ScoringConfig, type CompetitionRound, type AdvancementPreview, type AdvancementAthlete, type RoundCategoryStatus } from '@/api/client'
+import { api, type CompetitionCategory, type Route, type Registration, type RegistrationWithAthlete, type Athlete, type ScoringConfig, type CompetitionRound, type AdvancementPreview, type AdvancementAthlete, type RoundCategoryStatus } from '@/api/client'
 import {
   Card, SectionLabel, Field, Input, Select, PrimaryButton, GhostButton, DangerButton, Modal, StatusBadge
 } from '@/components/FormUI'
@@ -104,7 +104,7 @@ const ROUND_STATUS_LABEL: Record<string, string> = {
   UPCOMING: 'Bevorstehend', ACTIVE: 'Aktiv', CLOSED: 'Abgeschlossen',
 }
 const ROUND_STATUS_COLOR: Record<string, string> = {
-  UPCOMING: '#a6b0c3', ACTIVE: '#6cf0c2', CLOSED: '#6b7890',
+  UPCOMING: '#a6b0c3', ACTIVE: '#ffa222', CLOSED: '#6b7890',
 }
 
 type RoundForm = { name: string; slug: string; sortOrder: string; advancementCount: string; startAt: string; endAt: string; status: string }
@@ -386,8 +386,8 @@ function RoundsSection({ compId, categories }: { compId: string; categories: Com
                         return (
                           <span key={cs.id} style={{
                             fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 999,
-                            background: closed ? 'rgba(107,120,144,0.2)' : 'rgba(108,240,194,0.12)',
-                            color: closed ? '#6b7890' : '#6cf0c2',
+                            background: closed ? 'rgba(107,120,144,0.2)' : 'rgba(255,162,34,0.12)',
+                            color: closed ? '#6b7890' : '#ffa222',
                             letterSpacing: '0.06em',
                           }}>
                             {catName}: {closed ? 'Abgeschlossen' : 'Aktiv'}
@@ -818,8 +818,8 @@ function TokenSection({
         <SectionLabel>Selbstregistrierung (QR-Code / Link)</SectionLabel>
         <span style={{
           fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 999,
-          background: selfRegistration ? 'rgba(108,240,194,0.12)' : 'rgba(255,255,255,0.07)',
-          color: selfRegistration ? '#6cf0c2' : '#6b7890',
+          background: selfRegistration ? 'rgba(255,162,34,0.12)' : 'rgba(255,255,255,0.07)',
+          color: selfRegistration ? '#ffa222' : '#6b7890',
           letterSpacing: '0.06em', textTransform: 'uppercase',
         }}>
           {selfRegistration ? 'Aktiv' : 'Inaktiv'}
@@ -913,14 +913,16 @@ export function CompetitionDetail() {
   })
   const { data: org } = useQuery({ queryKey: ['org', 'mine'], queryFn: api.organizations.mine })
   const { data: athletes = [] } = useQuery({
-    queryKey: ['athletes', org?.id],
-    queryFn: () => api.athletes.list(org!.id),
-    enabled: !!org,
+    queryKey: ['athletes', comp?.orgId],
+    queryFn: () => api.athletes.list(comp!.orgId),
+    enabled: !!comp?.orgId,
+    staleTime: 0,
   })
   const { data: registrations = [] } = useQuery({
     queryKey: ['registrations', id],
     queryFn: () => api.registrations.list(id!),
     enabled: !!id,
+    staleTime: 0,
   })
   const { data: rounds = [] } = useQuery({
     queryKey: ['rounds', id],
@@ -1032,12 +1034,18 @@ export function CompetitionDetail() {
     else { setRegSortCol(col); setRegSortDir('asc') }
   }
 
+  // Flatten RegistrationWithAthlete → plain lists
+  const regs: Registration[] = (registrations as RegistrationWithAthlete[]).map(rwa => rwa.registration)
+  const athleteByRegId: Record<string, Athlete | null> = Object.fromEntries(
+    (registrations as RegistrationWithAthlete[]).map(rwa => [rwa.registration.id, rwa.athlete ?? null])
+  )
+
   const sortedRegistrations = useMemo(() => {
-    return [...(registrations as Registration[])].sort((a, b) => {
+    return [...regs].sort((a, b) => {
       let av = '', bv = ''
       if (regSortCol === 'athlete') {
-        const aa = (athletes as Athlete[]).find(x => x.id === a.athleteId)
-        const ba = (athletes as Athlete[]).find(x => x.id === b.athleteId)
+        const aa = athleteByRegId[a.id]
+        const ba = athleteByRegId[b.id]
         av = aa ? `${aa.lastName} ${aa.firstName}` : ''
         bv = ba ? `${ba.lastName} ${ba.firstName}` : ''
       } else if (regSortCol === 'category') {
@@ -1077,6 +1085,7 @@ export function CompetitionDetail() {
     }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['registrations', id] })
+      qc.invalidateQueries({ queryKey: ['athletes', comp?.orgId] })
       setAddForm({ athleteId: '', categoryId: '', startNumber: '' })
     },
   })
@@ -1092,9 +1101,17 @@ export function CompetitionDetail() {
     mutationFn: (regId: string) => api.registrations.delete(regId),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['registrations', id] }),
   })
+  const confirmAllRegs = useMutation({
+    mutationFn: () => Promise.all(
+      regs
+        .filter(r => r.status === 'PENDING')
+        .map(r => api.registrations.update(r.id, { status: 'CONFIRMED', categoryId: r.categoryId }))
+    ),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['registrations', id] }),
+  })
 
   // Athletes already registered (to prevent duplicates in dropdown)
-  const registeredAthleteIds = new Set((registrations as Registration[]).map(r => r.athleteId))
+  const registeredAthleteIds = new Set(regs.map(r => r.athleteId))
 
   if (compLoading || !comp) return <div style={{ color: '#a6b0c3' }}>Lädt…</div>
 
@@ -1308,7 +1325,18 @@ export function CompetitionDetail() {
 
       {/* Registrations */}
       <Card style={{ marginTop: 24 }}>
-        <div style={{ marginBottom: 16 }}><SectionLabel>Anmeldungen</SectionLabel></div>
+        <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <SectionLabel>Anmeldungen</SectionLabel>
+          {regs.some(r => r.status === 'PENDING') && (
+            <PrimaryButton
+              onClick={() => confirmAllRegs.mutate()}
+              disabled={confirmAllRegs.isPending}
+              style={{ fontSize: 12, padding: '6px 14px' }}
+            >
+              {confirmAllRegs.isPending ? '…' : 'Alle bestätigen'}
+            </PrimaryButton>
+          )}
+        </div>
 
         {/* Add form */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 120px auto', gap: 10, marginBottom: 20, alignItems: 'flex-end' }}>
@@ -1364,7 +1392,7 @@ export function CompetitionDetail() {
         )}
 
         {/* Registration list */}
-        {registrations.length === 0 ? (
+        {regs.length === 0 ? (
           <p style={{ color: '#a6b0c3', fontSize: 13, margin: 0 }}>Noch keine Anmeldungen.</p>
         ) : (
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -1390,7 +1418,7 @@ export function CompetitionDetail() {
             </thead>
             <tbody>
               {sortedRegistrations.map(reg => {
-                  const athlete = (athletes as Athlete[]).find(a => a.id === reg.athleteId)
+                  const athlete = athleteByRegId[reg.id]
                   const catName = reg.categoryId ? (categories as CompetitionCategory[]).find(c => c.id === reg.categoryId)?.name : null
                   const td: React.CSSProperties = { padding: '10px 8px', fontSize: 13, color: '#e8ecf3', borderBottom: '1px solid rgba(255,255,255,0.05)' }
                   const cellInput: React.CSSProperties = { background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 6, color: '#e8ecf3', fontSize: 13, padding: '4px 8px', width: '100%', boxSizing: 'border-box' }

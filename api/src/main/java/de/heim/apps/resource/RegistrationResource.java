@@ -1,5 +1,6 @@
 package de.heim.apps.resource;
 
+import de.heim.apps.entity.Athlete;
 import de.heim.apps.entity.CompetitionRound;
 import de.heim.apps.entity.Registration;
 import de.heim.apps.entity.RoundParticipant;
@@ -10,7 +11,9 @@ import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Path("/api/v1/registrations")
 @Produces(MediaType.APPLICATION_JSON)
@@ -20,14 +23,29 @@ public class RegistrationResource {
     @Inject
     ScoreboardEvents scoreboardEvents;
 
+    record RegistrationWithAthlete(Registration registration, Athlete athlete) {}
+
     @GET
-    public List<Registration> list(@QueryParam("compId") UUID compId,
-                                   @QueryParam("athleteId") UUID athleteId) {
+    public Response list(@QueryParam("compId") UUID compId,
+                         @QueryParam("athleteId") UUID athleteId) {
+        List<Registration> regs;
         if (compId != null && athleteId != null)
-            return Registration.list("compId = ?1 and athleteId = ?2", compId, athleteId);
-        if (compId != null) return Registration.list("compId", compId);
-        if (athleteId != null) return Registration.list("athleteId", athleteId);
-        return Registration.listAll();
+            regs = Registration.list("compId = ?1 and athleteId = ?2", compId, athleteId);
+        else if (compId != null) regs = Registration.list("compId", compId);
+        else if (athleteId != null) regs = Registration.list("athleteId", athleteId);
+        else regs = Registration.listAll();
+
+        if (compId == null) return Response.ok(regs).build();
+
+        List<UUID> athleteIds = regs.stream().map(r -> r.athleteId).distinct().toList();
+        Map<UUID, Athlete> athleteMap = athleteIds.isEmpty() ? Map.of()
+                : Athlete.<Athlete>list("id in ?1", athleteIds).stream()
+                        .collect(Collectors.toMap(a -> a.id, a -> a));
+
+        List<RegistrationWithAthlete> result = regs.stream()
+                .map(r -> new RegistrationWithAthlete(r, athleteMap.get(r.athleteId)))
+                .toList();
+        return Response.ok(result).build();
     }
 
     @GET

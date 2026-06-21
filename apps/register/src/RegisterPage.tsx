@@ -353,13 +353,19 @@ function ProfileStep({ token, comp, categories, disciplineLabel }: {
         })
         if (!athleteRes.ok) throw new Error('Fehler beim Speichern der Athletendaten')
 
-        const regRes = await fetch(`${BASE}/registrations/${alreadyRegistered.registration.id}`, {
-          method: 'PUT', headers,
-          body: JSON.stringify({ categoryId: form.categoryId || null }),
-        })
-        if (!regRes.ok) throw new Error('Fehler beim Speichern der Kategorie')
+        const oldCategoryId = alreadyRegistered.registration.categoryId ?? null
+        const newCategoryId = form.categoryId || null
+        const categoryChanged = oldCategoryId !== newCategoryId
 
-        return { updated: true }
+        if (categoryChanged) {
+          const regRes = await fetch(`${BASE}/registrations/${alreadyRegistered.registration.id}`, {
+            method: 'PUT', headers,
+            body: JSON.stringify({ categoryId: newCategoryId, status: 'PENDING' }),
+          })
+          if (!regRes.ok) throw new Error('Fehler beim Speichern der Kategorie')
+        }
+
+        return { updated: true, categoryChanged, newCategoryId }
       }
 
       // New registration
@@ -384,7 +390,6 @@ function ProfileStep({ token, comp, categories, disciplineLabel }: {
     },
     onSuccess: (result) => {
       if (result?.updated && alreadyRegistered) {
-        // Refresh the displayed data and go back to confirmation screen
         setAlreadyRegistered(prev => prev ? {
           ...prev,
           athlete: {
@@ -397,9 +402,11 @@ function ProfileStep({ token, comp, categories, disciplineLabel }: {
             nation: form.nation || null,
             licenseNumber: form.licenseNumber || null,
           },
-          registration: prev.registration
-            ? { ...prev.registration, categoryId: form.categoryId || null }
-            : prev.registration,
+          registration: prev.registration ? {
+            ...prev.registration,
+            categoryId: result.categoryChanged ? result.newCategoryId : prev.registration.categoryId,
+            status: result.categoryChanged ? 'PENDING' : prev.registration.status,
+          } : prev.registration,
         } : prev)
         setEditing(false)
       } else {

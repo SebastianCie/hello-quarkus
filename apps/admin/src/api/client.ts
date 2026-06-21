@@ -158,6 +158,11 @@ export type Registration = {
   confirmedAt: string | null
 }
 
+export type RegistrationWithAthlete = {
+  registration: Registration
+  athlete: Athlete | null
+}
+
 export type Athlete = {
   id: string
   orgId: string | null
@@ -291,7 +296,7 @@ export const api = {
 
   registrations: {
     list: (compId: string) =>
-      request<Registration[]>(`/registrations?compId=${compId}`),
+      request<RegistrationWithAthlete[]>(`/registrations?compId=${compId}`),
     create: (data: Omit<Registration, 'id' | 'registeredAt' | 'confirmedAt'>) =>
       request<Registration>('/registrations', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: Partial<Registration>) =>
