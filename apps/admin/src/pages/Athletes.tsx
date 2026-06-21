@@ -107,6 +107,7 @@ export function Athletes() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editingRow, setEditingRow] = useState<AthleteRow>(emptyRow())
   const [newRow, setNewRow] = useState<AthleteRow | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   function startEdit(a: Athlete) { setNewRow(null); setEditingId(a.id); setEditingRow(athleteToRow(a)) }
   function cancelEdit() { setEditingId(null) }
@@ -135,7 +136,10 @@ export function Athletes() {
   })
   const deleteAthlete = useMutation({
     mutationFn: (id: string) => api.athletes.delete(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['athletes', org?.id] }),
+    onSuccess: () => { setDeleteError(null); qc.invalidateQueries({ queryKey: ['athletes', org?.id] }) },
+    onError: (err: unknown) => {
+      setDeleteError(err instanceof Error ? err.message : 'Löschen fehlgeschlagen.')
+    },
   })
 
   const thBase: React.CSSProperties = {
@@ -164,6 +168,17 @@ export function Athletes() {
         </div>
         {!newRow && <PrimaryButton onClick={startNew}>+ Athlet</PrimaryButton>}
       </div>
+
+      {deleteError && (
+        <div style={{
+          marginBottom: 16, padding: '12px 16px', borderRadius: 10,
+          background: 'rgba(255,93,107,0.10)', border: '1px solid rgba(255,93,107,0.3)',
+          color: '#ff5d6b', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+        }}>
+          <span>{deleteError}</span>
+          <button onClick={() => setDeleteError(null)} style={{ background: 'none', border: 'none', color: '#ff5d6b', cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: 0 }}>✕</button>
+        </div>
+      )}
 
       <div style={{ background: '#121a2b', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 16, overflow: 'hidden' }}>
         <div style={{ overflowX: 'auto' }}>

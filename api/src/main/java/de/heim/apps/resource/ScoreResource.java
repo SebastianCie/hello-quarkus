@@ -1,6 +1,9 @@
 package de.heim.apps.resource;
 
+import de.heim.apps.entity.Registration;
 import de.heim.apps.entity.Score;
+import de.heim.apps.service.ScoreboardEvents;
+import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
@@ -12,6 +15,9 @@ import java.util.UUID;
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 public class ScoreResource {
+
+    @Inject
+    ScoreboardEvents scoreboardEvents;
 
     @GET
     public List<Score> list(@QueryParam("registrationId") UUID registrationId,
@@ -63,11 +69,18 @@ public class ScoreResource {
             existing.zoned = data.zoned;
             existing.bonusPoints = data.bonusPoints;
             existing.finalScore = data.finalScore;
+            emitScoreboardUpdate(data.registrationId);
             return Response.ok(existing).build();
         }
         data.id = null;
         data.persist();
+        emitScoreboardUpdate(data.registrationId);
         return Response.status(201).entity(data).build();
+    }
+
+    private void emitScoreboardUpdate(UUID registrationId) {
+        Registration reg = Registration.findById(registrationId);
+        if (reg != null) scoreboardEvents.emit(reg.compId.toString());
     }
 
     @DELETE

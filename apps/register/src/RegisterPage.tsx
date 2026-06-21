@@ -11,6 +11,12 @@ type Competition = {
 type Category = { id: string; name: string; gender: string | null }
 type PublicView = { competition: Competition; categories: Category[] }
 
+type ExistingAthlete = {
+  id: string; firstName: string; lastName: string; dateOfBirth: string | null
+  gender: string | null; club: string | null; nation: string | null; licenseNumber: string | null
+}
+type ExistingRegistration = { id: string; categoryId: string | null; status: string } | null
+
 type ProfileData = {
   firstName: string; lastName: string; dateOfBirth: string
   gender: string; club: string; nation: string; licenseNumber: string; categoryId: string
@@ -76,7 +82,6 @@ function LoginStep({ comp, disciplineLabel }: { comp: Competition; disciplineLab
           benötigst du ein Beta Battle-Konto. Du kannst dich mit deinem Google- oder
           GitHub-Konto anmelden oder ein neues Konto erstellen.
         </p>
-
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <button
             onClick={() => keycloak.login({ redirectUri: window.location.href })}
@@ -98,6 +103,140 @@ function LoginStep({ comp, disciplineLabel }: { comp: Competition; disciplineLab
   )
 }
 
+// ── Already registered screen ────────────────────────────────────────────────
+
+const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; border: string; hint: string }> = {
+  PENDING: {
+    label: 'Ausstehend',
+    color: '#ffc400',
+    bg: 'rgba(255,196,0,0.08)',
+    border: 'rgba(255,196,0,0.25)',
+    hint: 'Deine Anmeldung ist eingegangen und wartet auf die Bestätigung durch den Veranstalter.',
+  },
+  CONFIRMED: {
+    label: 'Bestätigt',
+    color: '#6cf0c2',
+    bg: 'rgba(108,240,194,0.10)',
+    border: 'rgba(108,240,194,0.25)',
+    hint: 'Du wurdest vom Veranstalter bestätigt und nimmst offiziell am Wettkampf teil.',
+  },
+  REJECTED: {
+    label: 'Abgelehnt',
+    color: '#ff5d6b',
+    bg: 'rgba(255,93,107,0.10)',
+    border: 'rgba(255,93,107,0.25)',
+    hint: 'Deine Anmeldung wurde leider nicht angenommen. Bitte kontaktiere den Veranstalter.',
+  },
+}
+
+function AlreadyRegistered({ comp, disciplineLabel, athlete, categories, categoryId, status, onEdit }: {
+  comp: Competition; disciplineLabel: string; athlete: ExistingAthlete
+  categories: Category[]; categoryId: string | null; status: string; onEdit: () => void
+}) {
+  const catName = categories.find(c => c.id === categoryId)?.name ?? null
+  const st = STATUS_CONFIG[status] ?? STATUS_CONFIG['PENDING']
+
+  return (
+    <div style={{ minHeight: '100vh' }}>
+      <CompHeader comp={comp} disciplineLabel={disciplineLabel} />
+
+      <div style={{ padding: '36px 20px 48px', maxWidth: 440, margin: '0 auto' }}>
+
+        {/* Hero */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 36 }}>
+          <div style={{
+            width: 72, height: 72, borderRadius: '50%',
+            background: 'rgba(108,240,194,0.12)',
+            border: '2px solid rgba(108,240,194,0.3)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 32, marginBottom: 20,
+          }}>
+            ✓
+          </div>
+          <h2 style={{ fontSize: 22, fontWeight: 700, margin: '0 0 8px', textAlign: 'center' }}>
+            Du bist angemeldet!
+          </h2>
+          <p style={{ color: '#a6b0c3', fontSize: 14, margin: 0, textAlign: 'center', lineHeight: 1.6, maxWidth: 300 }}>
+            Wir freuen uns auf dich bei <strong style={{ color: '#e8ecf3' }}>{comp.name}</strong>.
+          </p>
+        </div>
+
+        {/* Athlete card */}
+        <div style={{
+          background: 'rgba(255,255,255,0.04)',
+          border: '1px solid rgba(255,255,255,0.09)',
+          borderRadius: 14, overflow: 'hidden', marginBottom: 12,
+        }}>
+          <DataRow icon="👤" label="Name" value={`${athlete.firstName} ${athlete.lastName}`} first />
+          {catName && <DataRow icon="🏷️" label="Kategorie" value={catName} />}
+          {athlete.club && <DataRow icon="🏔️" label="Verein" value={athlete.club} />}
+          {athlete.nation && <DataRow icon="🌍" label="Nation" value={athlete.nation} />}
+        </div>
+
+        {/* Status card */}
+        <div style={{
+          borderRadius: 14, overflow: 'hidden',
+          border: `1px solid ${st.border}`,
+          background: st.bg,
+          marginBottom: 28,
+        }}>
+          <div style={{
+            padding: '14px 18px',
+            borderBottom: `1px solid ${st.border}`,
+            display: 'flex', alignItems: 'center', gap: 10,
+          }}>
+            <span style={{
+              display: 'inline-block', width: 8, height: 8, borderRadius: '50%',
+              background: st.color, flexShrink: 0,
+            }} />
+            <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: st.color }}>
+              Status: {st.label}
+            </span>
+          </div>
+          <div style={{ padding: '12px 18px' }}>
+            <p style={{ margin: 0, fontSize: 13, color: '#a6b0c3', lineHeight: 1.6 }}>
+              {st.hint}
+            </p>
+          </div>
+        </div>
+
+        {/* Edit button */}
+        <button
+          onClick={onEdit}
+          style={{
+            width: '100%', padding: '14px 24px', borderRadius: 12,
+            background: 'transparent',
+            border: '1px solid rgba(255,255,255,0.15)',
+            color: '#a6b0c3', fontSize: 14, fontWeight: 600,
+            cursor: 'pointer', fontFamily: 'inherit',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            transition: 'border-color 0.15s, color 0.15s',
+          }}
+          onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.3)'; (e.currentTarget as HTMLButtonElement).style.color = '#e8ecf3' }}
+          onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.15)'; (e.currentTarget as HTMLButtonElement).style.color = '#a6b0c3' }}
+        >
+          <span style={{ fontSize: 15 }}>✎</span>
+          Daten bearbeiten
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function DataRow({ icon, label, value, first }: { icon: string; label: string; value: string; first?: boolean }) {
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 12,
+      padding: '13px 18px',
+      borderTop: first ? 'none' : '1px solid rgba(255,255,255,0.06)',
+    }}>
+      <span style={{ fontSize: 16, flexShrink: 0, width: 22, textAlign: 'center' }}>{icon}</span>
+      <span style={{ fontSize: 12, color: '#6b7890', minWidth: 72, flexShrink: 0 }}>{label}</span>
+      <span style={{ fontSize: 14, fontWeight: 600, color: '#e8ecf3' }}>{value}</span>
+    </div>
+  )
+}
+
 // ── Step 2: Athletenprofil ───────────────────────────────────────────────────
 
 function ProfileStep({ token, comp, categories, disciplineLabel }: {
@@ -107,28 +246,125 @@ function ProfileStep({ token, comp, categories, disciplineLabel }: {
     firstName: '', lastName: '', dateOfBirth: '', gender: '',
     club: '', nation: '', licenseNumber: '', categoryId: '',
   })
+  const [loadingMe, setLoadingMe] = useState(true)
+  const [alreadyRegistered, setAlreadyRegistered] = useState<{
+    athlete: ExistingAthlete; registration: ExistingRegistration
+  } | null>(null)
+  const [editing, setEditing] = useState(false)
   const [success, setSuccess] = useState(false)
 
+  // Load existing profile / registration
   useEffect(() => {
-    const parsed = keycloak.tokenParsed as Record<string, string> | undefined
-    if (parsed) {
-      setForm(p => ({
-        ...p,
-        firstName: parsed.given_name ?? p.firstName,
-        lastName: parsed.family_name ?? p.lastName,
-      }))
+    const bearerToken = getToken()
+    if (!bearerToken) {
+      // Fall back to Keycloak token data only
+      const parsed = keycloak.tokenParsed as Record<string, string> | undefined
+      if (parsed) {
+        setForm(p => ({
+          ...p,
+          firstName: parsed.given_name ?? p.firstName,
+          lastName: parsed.family_name ?? p.lastName,
+        }))
+      }
+      setLoadingMe(false)
+      return
     }
-  }, [])
+
+    fetch(`${BASE}/competitions/by-token/${token}/me`, {
+      headers: { Authorization: `Bearer ${bearerToken}` },
+    })
+      .then(r => r.ok ? r.json() : null)
+      .then((data: { athlete: ExistingAthlete | Record<string, never>; registration: ExistingRegistration | Record<string, never> } | null) => {
+        if (!data) {
+          // No profile yet — use Keycloak data
+          const parsed = keycloak.tokenParsed as Record<string, string> | undefined
+          setForm(p => ({
+            ...p,
+            firstName: parsed?.given_name ?? p.firstName,
+            lastName: parsed?.family_name ?? p.lastName,
+          }))
+          return
+        }
+
+        const athlete = 'id' in data.athlete ? data.athlete as ExistingAthlete : null
+        const registration = data.registration && 'id' in data.registration
+          ? data.registration as ExistingRegistration
+          : null
+
+        if (athlete) {
+          // Pre-fill form in all cases (needed for the "edit" flow)
+          setForm({
+            firstName: athlete.firstName ?? '',
+            lastName: athlete.lastName ?? '',
+            dateOfBirth: athlete.dateOfBirth ?? '',
+            gender: athlete.gender ?? '',
+            club: athlete.club ?? '',
+            nation: athlete.nation ?? '',
+            licenseNumber: athlete.licenseNumber ?? '',
+            categoryId: registration?.categoryId ?? '',
+          })
+          // Already registered for this competition
+          if (registration) {
+            setAlreadyRegistered({ athlete, registration })
+            return
+          }
+        } else {
+          // No athlete profile — use Keycloak data
+          const parsed = keycloak.tokenParsed as Record<string, string> | undefined
+          setForm(p => ({
+            ...p,
+            firstName: parsed?.given_name ?? p.firstName,
+            lastName: parsed?.family_name ?? p.lastName,
+          }))
+        }
+      })
+      .catch(() => {
+        const parsed = keycloak.tokenParsed as Record<string, string> | undefined
+        setForm(p => ({
+          ...p,
+          firstName: parsed?.given_name ?? p.firstName,
+          lastName: parsed?.family_name ?? p.lastName,
+        }))
+      })
+      .finally(() => setLoadingMe(false))
+  }, [token])
 
   const register = useMutation({
     mutationFn: async () => {
-      const token_ = getToken()
+      const bearerToken = getToken()
+      const headers = {
+        'Content-Type': 'application/json',
+        ...(bearerToken ? { Authorization: `Bearer ${bearerToken}` } : {}),
+      }
+
+      // Update existing athlete + registration
+      if (alreadyRegistered?.athlete && alreadyRegistered?.registration) {
+        const athleteRes = await fetch(`${BASE}/athletes/${alreadyRegistered.athlete.id}`, {
+          method: 'PUT', headers,
+          body: JSON.stringify({
+            firstName: form.firstName,
+            lastName: form.lastName,
+            dateOfBirth: form.dateOfBirth || null,
+            gender: form.gender || null,
+            club: form.club || null,
+            nation: form.nation || null,
+            licenseNumber: form.licenseNumber || null,
+          }),
+        })
+        if (!athleteRes.ok) throw new Error('Fehler beim Speichern der Athletendaten')
+
+        const regRes = await fetch(`${BASE}/registrations/${alreadyRegistered.registration.id}`, {
+          method: 'PUT', headers,
+          body: JSON.stringify({ categoryId: form.categoryId || null }),
+        })
+        if (!regRes.ok) throw new Error('Fehler beim Speichern der Kategorie')
+
+        return { updated: true }
+      }
+
+      // New registration
       const res = await fetch(`${BASE}/competitions/by-token/${token}/register`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token_ ? { Authorization: `Bearer ${token_}` } : {}),
-        },
+        method: 'POST', headers,
         body: JSON.stringify({
           firstName: form.firstName,
           lastName: form.lastName,
@@ -146,8 +382,53 @@ function ProfileStep({ token, comp, categories, disciplineLabel }: {
       }
       return res.json()
     },
-    onSuccess: () => setSuccess(true),
+    onSuccess: (result) => {
+      if (result?.updated && alreadyRegistered) {
+        // Refresh the displayed data and go back to confirmation screen
+        setAlreadyRegistered(prev => prev ? {
+          ...prev,
+          athlete: {
+            ...prev.athlete,
+            firstName: form.firstName,
+            lastName: form.lastName,
+            dateOfBirth: form.dateOfBirth || null,
+            gender: form.gender || null,
+            club: form.club || null,
+            nation: form.nation || null,
+            licenseNumber: form.licenseNumber || null,
+          },
+          registration: prev.registration
+            ? { ...prev.registration, categoryId: form.categoryId || null }
+            : prev.registration,
+        } : prev)
+        setEditing(false)
+      } else {
+        setSuccess(true)
+      }
+    },
   })
+
+  if (loadingMe) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#a6b0c3', fontSize: 15 }}>
+        Lädt…
+      </div>
+    )
+  }
+
+  if (alreadyRegistered && !editing) {
+    return (
+      <AlreadyRegistered
+        comp={comp}
+        disciplineLabel={disciplineLabel}
+        athlete={alreadyRegistered.athlete}
+        categories={categories}
+        categoryId={alreadyRegistered.registration?.categoryId ?? null}
+        status={alreadyRegistered.registration?.status ?? 'PENDING'}
+        onEdit={() => setEditing(true)}
+      />
+    )
+  }
 
   if (success) {
     return (
@@ -240,8 +521,23 @@ function ProfileStep({ token, comp, categories, disciplineLabel }: {
               width: '100%', fontFamily: 'inherit', transition: 'background 0.15s',
             }}
           >
-            {register.isPending ? 'Anmeldung läuft…' : 'Jetzt anmelden'}
+            {register.isPending
+              ? (editing ? 'Speichern…' : 'Anmeldung läuft…')
+              : (editing ? 'Änderungen speichern' : 'Jetzt anmelden')}
           </button>
+
+          {editing && (
+            <button
+              onClick={() => { setEditing(false); register.reset() }}
+              style={{
+                padding: '10px 24px', borderRadius: 12, background: 'none',
+                border: 'none', color: '#6b7890', fontSize: 14,
+                cursor: 'pointer', fontFamily: 'inherit', width: '100%',
+              }}
+            >
+              Abbrechen
+            </button>
+          )}
         </div>
       </div>
     </div>

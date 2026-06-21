@@ -4,6 +4,7 @@ import de.heim.apps.entity.Athlete;
 import de.heim.apps.entity.Competition;
 import de.heim.apps.entity.CompetitionCategory;
 import de.heim.apps.entity.Registration;
+import de.heim.apps.entity.Score;
 import io.quarkus.security.identity.SecurityIdentity;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
@@ -92,6 +93,24 @@ public class AthleteResource {
     @Path("/{id}")
     @Transactional
     public Response delete(@PathParam("id") UUID id) {
-        return Athlete.deleteById(id) ? Response.noContent().build() : Response.status(404).build();
+        Athlete athlete = Athlete.findById(id);
+        if (athlete == null) return Response.status(404).build();
+
+        List<Registration> regs = Registration.list("athleteId", id);
+        List<UUID> regIds = regs.stream().map(r -> r.id).toList();
+
+        long scoreCount = regIds.isEmpty() ? 0
+                : Score.count("registrationId in ?1", regIds);
+        if (scoreCount > 0) {
+            return Response.status(409)
+                    .entity(Map.of("message", "Athlet kann nicht gelöscht werden, da bereits Ergebnisse eingetragen wurden."))
+                    .build();
+        }
+
+        if (!regIds.isEmpty()) {
+            Registration.delete("athleteId", id);
+        }
+        athlete.delete();
+        return Response.noContent().build();
     }
 }

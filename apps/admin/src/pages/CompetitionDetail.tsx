@@ -91,6 +91,38 @@ function RouteInlineRow({
   )
 }
 
+function ScoreboardUrlSection({ slug }: { slug: string }) {
+  const [copied, setCopied] = useState(false)
+  const url = `${window.location.origin.replace(':3000', ':3003')}/${slug}`
+
+  function copy() {
+    navigator.clipboard.writeText(url)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  return (
+    <Card style={{ marginTop: 24 }}>
+      <SectionLabel>Scoreboard</SectionLabel>
+      <p style={{ fontSize: 13, color: '#a6b0c3', margin: '12px 0' }}>
+        Diesen Link auf dem Beamer oder einem Display in der Halle öffnen. Das Scoreboard aktualisiert sich automatisch.
+      </p>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+        <code style={{
+          background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)',
+          borderRadius: 8, padding: '8px 14px', fontSize: 13, color: '#6cf0c2',
+          letterSpacing: '0.03em', wordBreak: 'break-all',
+        }}>
+          {url}
+        </code>
+        <GhostButton onClick={copy} style={{ whiteSpace: 'nowrap' }}>
+          {copied ? '✓ Kopiert' : 'Link kopieren'}
+        </GhostButton>
+      </div>
+    </Card>
+  )
+}
+
 const EVENT_TYPES = [
   { value: 'FLASH',             label: 'Flash (1. Versuch)',    color: '#ffd700' },
   { value: 'TOP',               label: 'Top',                   color: '#6cf0c2' },
@@ -986,6 +1018,8 @@ export function CompetitionDetail() {
         registrationClosesAt={comp.registrationClosesAt ?? null}
         onGenerated={() => qc.invalidateQueries({ queryKey: ['competition', id] })}
       />
+
+      <ScoreboardUrlSection slug={comp.slug} />
 
       <ScoringSection compId={id!} />
 

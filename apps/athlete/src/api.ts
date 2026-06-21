@@ -9,9 +9,24 @@ export type Athlete = {
 }
 
 export type Competition = {
-  id: string; name: string; discipline: string; status: string
+  id: string; name: string; slug: string; discipline: string; status: string
   startDate: string | null; endDate: string | null
   hallMapAvailable?: boolean
+}
+
+export type ScoreboardEntry = {
+  rank: number | null
+  registration: { id: string; startNumber: string | null }
+  athlete: { firstName: string; lastName: string }
+  totalPoints: number
+  toppedCount: number
+  zonedCount: number
+}
+
+export type ScoreboardData = {
+  competition: { id: string; name: string; slug: string }
+  scoringConfig: { eventType: string; points: number; label: string | null }[]
+  categories: { category: { id: string; name: string }; athletes: ScoreboardEntry[] }[]
 }
 
 export type Category = {
@@ -67,6 +82,12 @@ export async function fetchRoutes(compId: string, categoryId: string | null): Pr
 
 export async function fetchScores(registrationId: string): Promise<Score[]> {
   const res = await fetch(`${BASE}/scores?registrationId=${registrationId}`, { headers: authHeaders() })
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  return res.json()
+}
+
+export async function fetchScoreboard(slug: string): Promise<ScoreboardData> {
+  const res = await fetch(`/api/v1/scoreboard/${slug}`)
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   return res.json()
 }

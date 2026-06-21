@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query'
 import { keycloak } from './auth/keycloak'
 import { fetchMe } from './api'
 import type { ActiveRegistration } from './api'
 import { BoulderListPage } from './pages/BoulderListPage'
 import { CompetitionSelectPage } from './pages/CompetitionSelectPage'
+import { ScoreboardPage } from './pages/ScoreboardPage'
 
 const queryClient = new QueryClient()
 
@@ -143,6 +144,121 @@ function TopBar({ name }: { name: string }) {
   )
 }
 
+// ── Tab Bar ───────────────────────────────────────────────────────────────────
+
+type Tab = 'boulder' | 'rangliste'
+
+const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
+  {
+    id: 'boulder',
+    label: 'Boulder',
+    icon: (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+        <rect x="3" y="3" width="7" height="7" rx="1.5" />
+        <rect x="14" y="3" width="7" height="7" rx="1.5" />
+        <rect x="3" y="14" width="7" height="7" rx="1.5" />
+        <rect x="14" y="14" width="7" height="7" rx="1.5" />
+      </svg>
+    ),
+  },
+  {
+    id: 'rangliste',
+    label: 'Rangliste',
+    icon: (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+        <rect x="2" y="13" width="5" height="9" rx="1" />
+        <rect x="9.5" y="8" width="5" height="14" rx="1" />
+        <rect x="17" y="10" width="5" height="12" rx="1" />
+      </svg>
+    ),
+  },
+]
+
+function BottomTabBar({ active, onChange }: { active: Tab; onChange: (t: Tab) => void }) {
+  return (
+    <div style={{
+      position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 100,
+      background: 'rgba(2,2,49,0.97)',
+      backdropFilter: 'blur(12px)',
+      borderTop: '1px solid rgba(255,255,255,0.08)',
+      display: 'flex',
+      height: 57,
+    }}>
+      {TABS.map(tab => {
+        const isActive = active === tab.id
+        return (
+          <button
+            key={tab.id}
+            onClick={() => onChange(tab.id)}
+            style={{
+              flex: 1, display: 'flex', flexDirection: 'column',
+              alignItems: 'center', justifyContent: 'center', gap: 3,
+              background: 'none', border: 'none', cursor: 'pointer',
+              color: isActive ? ACCENT : '#6b7890',
+              fontFamily: 'inherit',
+              borderTop: isActive ? `2px solid ${ACCENT}` : '2px solid transparent',
+              transition: 'color 0.15s',
+              paddingBottom: 2,
+            }}
+          >
+            {tab.icon}
+            <span style={{ fontSize: 10, fontWeight: isActive ? 700 : 500, letterSpacing: '0.04em' }}>
+              {tab.label}
+            </span>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+// ── Swipe hook ────────────────────────────────────────────────────────────────
+
+function useSwipe(onLeft: () => void, onRight: () => void) {
+  const startX = useRef<number | null>(null)
+  const startY = useRef<number | null>(null)
+
+  return {
+    onTouchStart: (e: React.TouchEvent) => {
+      startX.current = e.touches[0].clientX
+      startY.current = e.touches[0].clientY
+    },
+    onTouchEnd: (e: React.TouchEvent) => {
+      if (startX.current === null || startY.current === null) return
+      const dx = e.changedTouches[0].clientX - startX.current
+      const dy = e.changedTouches[0].clientY - startY.current
+      // Only trigger if horizontal swipe is dominant and long enough
+      if (Math.abs(dx) > 48 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+        if (dx < 0) onLeft()
+        else onRight()
+      }
+      startX.current = null
+      startY.current = null
+    },
+  }
+}
+
+// ── Competition Shell (with tabs) ────────────────────────────────────────────
+
+function CompetitionShell({ reg }: { reg: ActiveRegistration }) {
+  const [tab, setTab] = useState<Tab>('boulder')
+
+  const swipe = useSwipe(
+    () => setTab('rangliste'),   // swipe left → rangliste
+    () => setTab('boulder'),     // swipe right → boulder
+  )
+
+  return (
+    <div style={{ paddingTop: 48, paddingBottom: 57 }} {...swipe}>
+      {tab === 'boulder'
+        ? <BoulderListPage reg={reg} />
+        : <ScoreboardPage reg={reg} />
+      }
+      <BottomTabBar active={tab} onChange={setTab} />
+    </div>
+  )
+}
+
 // ── Authenticated Shell ───────────────────────────────────────────────────────
 
 function AuthenticatedApp() {
@@ -209,7 +325,7 @@ function AuthenticatedApp() {
   return (
     <>
       <TopBar name={fullName} />
-      <div style={{ paddingTop: 48 }}><BoulderListPage reg={active} /></div>
+      <CompetitionShell reg={active} />
     </>
   )
 }

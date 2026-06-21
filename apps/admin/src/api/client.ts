@@ -237,6 +237,12 @@ export const api = {
       request<void>(`/registrations/${id}`, { method: 'DELETE' }),
   },
 
+  settings: {
+    getAll: () => request<Record<string, string>>('/settings'),
+    update: (key: string, value: string) =>
+      request<unknown>(`/settings/${key}`, { method: 'PUT', body: JSON.stringify({ value }) }),
+  },
+
   scoringConfigs: {
     list: (compId: string) =>
       request<ScoringConfig[]>(`/scoring-configs?compId=${compId}`),

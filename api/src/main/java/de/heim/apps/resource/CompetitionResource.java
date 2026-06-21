@@ -5,6 +5,7 @@ import de.heim.apps.entity.Competition;
 import de.heim.apps.entity.CompetitionCategory;
 import de.heim.apps.entity.Registration;
 import io.quarkus.security.identity.SecurityIdentity;
+import org.eclipse.microprofile.jwt.JsonWebToken;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import jakarta.ws.rs.*;
@@ -17,6 +18,7 @@ import java.nio.file.Files;
 import java.security.SecureRandom;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -31,6 +33,9 @@ public class CompetitionResource {
 
     @Inject
     SecurityIdentity identity;
+
+    @Inject
+    JsonWebToken jwt;
 
     record SelfRegisterRequest(
         String firstName, String lastName, String dateOfBirth,
@@ -74,6 +79,53 @@ public class CompetitionResource {
         if (err != null) return err;
         List<CompetitionCategory> categories = CompetitionCategory.list("compId", comp.id);
         return Response.ok(Map.of("competition", comp, "categories", categories)).build();
+    }
+
+    @GET
+    @Path("/by-token/{token}/me")
+    @Transactional
+    public Response myRegistration(@PathParam("token") String token) {
+        if (identity.isAnonymous()) return Response.ok(Map.of("athlete", Map.of(), "registration", Map.of())).build();
+        Competition comp = Competition.find("registrationToken", token).firstResult();
+        if (comp == null) return Response.status(404).build();
+        UUID userId = UUID.fromString(identity.getPrincipal().getName());
+
+        // Primary: find athlete by Keycloak userId
+        Athlete athlete = Athlete.find("userId", userId).firstResult();
+        Registration reg = null;
+
+        if (athlete != null) {
+            List<Registration> regs = Registration.list("compId = ?1 and athleteId = ?2", comp.id, athlete.id);
+            reg = regs.isEmpty() ? null : regs.get(0);
+        } else {
+            // Fallback: match by name among registrations for this competition.
+            // Covers athletes created by an admin (userId = null).
+            String givenName = jwt.getClaim("given_name");
+            String familyName = jwt.getClaim("family_name");
+            if (givenName != null && familyName != null) {
+                List<Registration> compRegs = Registration.list("compId", comp.id);
+                for (Registration r : compRegs) {
+                    Athlete candidate = Athlete.findById(r.athleteId);
+                    if (candidate != null && candidate.userId == null
+                            && givenName.equalsIgnoreCase(candidate.firstName)
+                            && familyName.equalsIgnoreCase(candidate.lastName)) {
+                        // Link this athlete to the Keycloak user for future lookups
+                        candidate.userId = userId;
+                        athlete = candidate;
+                        reg = r;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (athlete == null) {
+            return Response.ok(Map.of("athlete", Map.of(), "registration", Map.of())).build();
+        }
+        Map<String, Object> result = new HashMap<>();
+        result.put("athlete", athlete);
+        result.put("registration", reg != null ? reg : Map.of());
+        return Response.ok(result).build();
     }
 
     @POST
