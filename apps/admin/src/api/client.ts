@@ -101,6 +101,50 @@ export type Route = {
   maxScore: number | null
   sortOrder: number | null
   categoryId: string | null
+  roundId: string | null
+}
+
+export type CompetitionRound = {
+  id: string
+  compId: string
+  name: string
+  slug: string
+  sortOrder: number
+  startAt: string | null
+  endAt: string | null
+  advancementCount: number | null
+  status: string
+}
+
+export type AdvancementAthlete = {
+  registrationId: string
+  firstName: string
+  lastName: string
+  startNumber: string | null
+  rank: number | null
+  totalPoints: number
+}
+
+export type AdvancementCategory = {
+  categoryId: string | null
+  categoryName: string
+  alreadyClosed: boolean
+  advancementCount: number
+  advancing: AdvancementAthlete[]
+  eliminated: AdvancementAthlete[]
+}
+
+export type AdvancementPreview = {
+  allScoresComplete: boolean
+  missingScoreAthletes: string[]
+  categories: AdvancementCategory[]
+}
+
+export type RoundCategoryStatus = {
+  id: string
+  roundId: string
+  categoryId: string
+  status: string
 }
 
 export type Registration = {
@@ -216,14 +260,33 @@ export const api = {
   },
 
   routes: {
-    list: (compId: string) =>
-      request<Route[]>(`/routes?compId=${compId}`),
+    list: (compId: string, roundId?: string) =>
+      request<Route[]>(roundId ? `/routes?roundId=${roundId}` : `/routes?compId=${compId}`),
     create: (data: Omit<Route, 'id'>) =>
       request<Route>('/routes', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: Partial<Route>) =>
       request<Route>(`/routes/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     delete: (id: string) =>
       request<void>(`/routes/${id}`, { method: 'DELETE' }),
+  },
+
+  rounds: {
+    list: (compId: string) =>
+      request<CompetitionRound[]>(`/rounds?compId=${compId}`),
+    create: (data: Omit<CompetitionRound, 'id'>) =>
+      request<CompetitionRound>('/rounds', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: Partial<CompetitionRound>) =>
+      request<CompetitionRound>(`/rounds/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    delete: (id: string) =>
+      request<void>(`/rounds/${id}`, { method: 'DELETE' }),
+    categoryStatuses: (id: string) =>
+      request<RoundCategoryStatus[]>(`/rounds/${id}/category-statuses`),
+    allCategoryStatuses: (compId: string) =>
+      request<RoundCategoryStatus[]>(`/rounds/category-statuses?compId=${compId}`),
+    advancementPreview: (id: string, categoryId?: string) =>
+      request<AdvancementPreview>(`/rounds/${id}/advancement-preview${categoryId ? `?categoryId=${categoryId}` : ''}`),
+    close: (id: string, categoryId: string | null, advancedRegistrationIds: string[]) =>
+      request<unknown>(`/rounds/${id}/close`, { method: 'POST', body: JSON.stringify({ categoryId, advancedRegistrationIds }) }),
   },
 
   registrations: {

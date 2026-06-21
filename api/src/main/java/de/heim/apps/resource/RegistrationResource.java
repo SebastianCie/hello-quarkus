@@ -1,6 +1,8 @@
 package de.heim.apps.resource;
 
+import de.heim.apps.entity.CompetitionRound;
 import de.heim.apps.entity.Registration;
+import de.heim.apps.entity.RoundParticipant;
 import de.heim.apps.service.ScoreboardEvents;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
@@ -52,9 +54,28 @@ public class RegistrationResource {
         if (data.compId != null) entity.compId = data.compId;
         if (data.athleteId != null) entity.athleteId = data.athleteId;
         entity.categoryId = data.categoryId;
+        boolean wasConfirmed = "CONFIRMED".equals(entity.status);
         if (data.status != null) entity.status = data.status;
         if (data.startNumber != null) entity.startNumber = data.startNumber;
         if (data.confirmedAt != null) entity.confirmedAt = data.confirmedAt;
+
+        // When an athlete is newly confirmed, add them to round 1 (lowest sort_order)
+        if (!wasConfirmed && "CONFIRMED".equals(entity.status)) {
+            CompetitionRound round1 = CompetitionRound.<CompetitionRound>list(
+                    "compId = ?1 ORDER BY sortOrder ASC", entity.compId)
+                    .stream().findFirst().orElse(null);
+            if (round1 != null) {
+                boolean alreadyIn = RoundParticipant.count(
+                        "roundId = ?1 and registrationId = ?2", round1.id, entity.id) > 0;
+                if (!alreadyIn) {
+                    RoundParticipant rp = new RoundParticipant();
+                    rp.roundId = round1.id;
+                    rp.registrationId = entity.id;
+                    rp.persist();
+                }
+            }
+        }
+
         scoreboardEvents.emit(entity.compId.toString());
         return Response.ok(entity).build();
     }

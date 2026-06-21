@@ -48,6 +48,44 @@ const FAQ: Section[] = [
     ],
   },
   {
+    title: 'Runden',
+    entries: [
+      {
+        q: 'Wozu dienen Runden?',
+        a: `Runden unterteilen einen Wettkampf in Phasen, z.B. Qualifikation und Finale. Jede Runde hat eigene Routen und eigene Teilnehmer. Athleten werden am Ende einer Runde manuell in die nächste weitergeleitet.`,
+      },
+      {
+        q: 'Wann erscheint der Button „Runde abschließen"?',
+        a: `Der Button „Runde abschließen" wird nur angezeigt, wenn beide Bedingungen erfüllt sind:
+
+1. Die Runde hat den Status „Aktiv".
+2. Die Runde hat eine konfigurierte Weiterkommen-Anzahl (Feld „Weiterkommen" im Bearbeiten-Dialog, z.B. 10 für die Top-10).
+
+Die Weiterkommen-Anzahl ist notwendig, damit das System berechnen kann, wer in die nächste Runde (z.B. das Finale) einzieht.`,
+      },
+      {
+        q: 'Was passiert beim Abschließen einer Runde?',
+        a: `Wenn du auf „Runde abschließen" klickst, öffnet sich ein Dialog mit drei Optionen:
+
+• Alle Kategorien abschließen – Beendet die Runde für alle Kategorien gleichzeitig.
+• Nur Männlich abschließen – Die Runde bleibt für Weiblich noch aktiv.
+• Nur Weiblich abschließen – Die Runde bleibt für Männlich noch aktiv.
+
+Im Dialog siehst du eine Rangliste mit den vorgeschlagenen Weiterkommer. Du kannst die Auswahl manuell anpassen, bevor du bestätigst. Die ausgewählten Athleten werden automatisch in die nächste Runde übernommen, die daraufhin aktiviert wird.
+
+Die gesamte Runde gilt erst als „Abgeschlossen", wenn alle Kategorien abgeschlossen wurden.`,
+      },
+      {
+        q: 'Warum kann ich den Status im „Runde bearbeiten"-Dialog nicht auf „Abgeschlossen" setzen?',
+        a: `Der Status „Abgeschlossen" kann nur über den Button „Runde abschließen" gesetzt werden – nicht direkt über das Bearbeiten-Formular. Das stellt sicher, dass das Abschließen immer über den Dialog mit Kategorie-Auswahl und Athleten-Weiterkommen läuft und keine Schritte versehentlich übersprungen werden.`,
+      },
+      {
+        q: 'Wie funktioniert die Reihenfolge der Runden?',
+        a: `Jede Runde hat ein Feld „Reihenfolge" (eine Zahl). Die Runde mit der niedrigsten Zahl wird zuerst gespielt. Innerhalb eines Wettkampfs muss die Reihenfolge eindeutig sein – beim Speichern erscheint eine Fehlermeldung, wenn die Zahl bereits vergeben ist. Beim Anlegen einer neuen Runde wird die nächste freie Zahl automatisch vorgeschlagen.`,
+      },
+    ],
+  },
+  {
     title: 'Organisation & Standorte',
     entries: [
       {

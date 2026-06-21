@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { api, type CompetitionCategory, type Route, type Registration, type Athlete, type ScoringConfig } from '@/api/client'
+import { api, type CompetitionCategory, type Route, type Registration, type Athlete, type ScoringConfig, type CompetitionRound, type AdvancementPreview, type AdvancementAthlete, type RoundCategoryStatus } from '@/api/client'
 import {
   Card, SectionLabel, Field, Input, Select, PrimaryButton, GhostButton, DangerButton, Modal, StatusBadge
 } from '@/components/FormUI'
@@ -17,14 +17,15 @@ const GENDERS = [
 type CatForm = { name: string; gender: string; ageMin: string; ageMax: string; maxParticipants: string }
 const emptyCat = (): CatForm => ({ name: '', gender: '', ageMin: '', ageMax: '', maxParticipants: '' })
 
-type RouteRow = { routeNumber: string; name: string; sortOrder: string; grade: string; maxScore: string; categoryId: string }
-const emptyRow = (): RouteRow => ({ routeNumber: '', name: '', sortOrder: '', grade: '', maxScore: '', categoryId: '' })
+type RouteRow = { routeNumber: string; name: string; sortOrder: string; grade: string; maxScore: string; categoryId: string; roundId: string }
+const emptyRow = (roundId = ''): RouteRow => ({ routeNumber: '', name: '', sortOrder: '', grade: '', maxScore: '', categoryId: '', roundId })
 
 function routeToRow(r: Route): RouteRow {
   return {
     routeNumber: r.routeNumber ?? '', name: r.name ?? '',
     sortOrder: r.sortOrder?.toString() ?? '', grade: r.grade ?? '',
     maxScore: r.maxScore?.toString() ?? '', categoryId: r.categoryId ?? '',
+    roundId: r.roundId ?? '',
   }
 }
 
@@ -45,12 +46,13 @@ function sortRoutes(routes: Route[], col: SortCol, dir: 'asc' | 'desc'): Route[]
 const COL = { number: 70, name: 160, sortOrder: 100, grade: 90, maxScore: 90, actions: 160 }
 
 function RouteInlineRow({
-  row, onChange, onSave, onCancel, pending, error, categories,
+  row, onChange, onSave, onCancel, pending, error, categories, rounds,
 }: {
   row: RouteRow; onChange: (r: RouteRow) => void
   onSave: () => void; onCancel: () => void
   pending: boolean; error?: string | null
   categories: CompetitionCategory[]
+  rounds: CompetitionRound[]
 }) {
   const cell: React.CSSProperties = {
     background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)',
@@ -74,6 +76,13 @@ function RouteInlineRow({
         <input style={cell} type="number" value={row.maxScore} placeholder="—" onChange={e => onChange({ ...row, maxScore: e.target.value })} />
       </td>
       <td style={{ padding: '6px 8px', width: COL.actions }} colSpan={2}>
+        {rounds.length > 0 && (
+          <select style={{ ...cell, cursor: 'pointer', marginBottom: 4 }} value={row.roundId}
+            onChange={e => onChange({ ...row, roundId: e.target.value })}>
+            <option value="">— Runde —</option>
+            {rounds.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+          </select>
+        )}
         <select style={{ ...cell, cursor: 'pointer', marginBottom: 4 }} value={row.categoryId}
           onChange={e => onChange({ ...row, categoryId: e.target.value })}>
           <option value="">— alle Kategorien —</option>
@@ -88,6 +97,402 @@ function RouteInlineRow({
         {error && <span style={{ color: '#ff5d6b', fontSize: 11, display: 'block', marginTop: 4 }}>{error}</span>}
       </td>
     </tr>
+  )
+}
+
+const ROUND_STATUS_LABEL: Record<string, string> = {
+  UPCOMING: 'Bevorstehend', ACTIVE: 'Aktiv', CLOSED: 'Abgeschlossen',
+}
+const ROUND_STATUS_COLOR: Record<string, string> = {
+  UPCOMING: '#a6b0c3', ACTIVE: '#6cf0c2', CLOSED: '#6b7890',
+}
+
+type RoundForm = { name: string; slug: string; sortOrder: string; advancementCount: string; startAt: string; endAt: string; status: string }
+const emptyRoundForm = (): RoundForm => ({ name: '', slug: '', sortOrder: '0', advancementCount: '', startAt: '', endAt: '', status: 'UPCOMING' })
+
+function roundToForm(r: CompetitionRound): RoundForm {
+  return {
+    name: r.name, slug: r.slug, sortOrder: r.sortOrder.toString(),
+    advancementCount: r.advancementCount?.toString() ?? '',
+    startAt: r.startAt ? r.startAt.slice(0, 16) : '',
+    endAt: r.endAt ? r.endAt.slice(0, 16) : '',
+    status: r.status,
+  }
+}
+
+function AdvancementModal({ round, preview, categories, onClose, onConfirm, isPending }: {
+  round: CompetitionRound
+  preview: AdvancementPreview
+  categories: CompetitionCategory[]
+  onClose: () => void
+  onConfirm: (categoryId: string | null, ids: string[]) => void
+  isPending: boolean
+}) {
+  // Category picker: null = alle, string = specific categoryId
+  const openCategories = preview.categories.filter(c => !c.alreadyClosed)
+  const [selectedCatId, setSelectedCatId] = useState<string | null>(
+    openCategories.length === 1 ? (openCategories[0].categoryId ?? null) : null
+  )
+
+  const visibleCats = selectedCatId !== null
+    ? preview.categories.filter(c => c.categoryId === selectedCatId)
+    : preview.categories.filter(c => !c.alreadyClosed)
+
+  const [advancing, setAdvancing] = useState<Set<string>>(() => {
+    const initial = new Set<string>()
+    for (const cat of preview.categories) {
+      if (cat.alreadyClosed) continue
+      for (const a of cat.advancing) initial.add(a.registrationId)
+    }
+    return initial
+  })
+
+  // Reset checkboxes when category selection changes
+  React.useEffect(() => {
+    const initial = new Set<string>()
+    for (const cat of visibleCats) {
+      for (const a of cat.advancing) initial.add(a.registrationId)
+    }
+    setAdvancing(initial)
+  }, [selectedCatId]) // eslint-disable-line react-hooks/exhaustive_deps
+
+  function toggle(id: string) {
+    setAdvancing(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+  }
+
+  const athleteRow = (a: AdvancementAthlete) => (
+    <div key={a.registrationId} style={{
+      display: 'flex', alignItems: 'center', gap: 10,
+      padding: '6px 10px', borderRadius: 6,
+      background: advancing.has(a.registrationId) ? 'rgba(108,240,194,0.08)' : 'rgba(255,255,255,0.03)',
+    }}>
+      <input type="checkbox" checked={advancing.has(a.registrationId)} onChange={() => toggle(a.registrationId)}
+        style={{ cursor: 'pointer', accentColor: '#6cf0c2' }} />
+      {a.rank != null && (
+        <span style={{ fontSize: 11, color: '#6b7890', width: 24, textAlign: 'center', flexShrink: 0 }}>#{a.rank}</span>
+      )}
+      <span style={{ flex: 1, fontSize: 13, color: '#e8ecf3' }}>{a.lastName}, {a.firstName}</span>
+      {a.startNumber && <span style={{ fontSize: 12, color: '#a6b0c3' }}>{a.startNumber}</span>}
+      <span style={{ fontSize: 12, fontWeight: 700, color: advancing.has(a.registrationId) ? '#6cf0c2' : '#6b7890' }}>
+        {a.totalPoints.toFixed(1)}
+      </span>
+    </div>
+  )
+
+  const hasMultipleOpenCats = openCategories.length > 1
+  const confirmLabel = selectedCatId !== null
+    ? `${categories.find(c => c.id === selectedCatId)?.name ?? 'Kategorie'} abschließen`
+    : 'Alle Kategorien abschließen'
+
+  return (
+    <Modal title={`Runde abschließen: ${round.name}`} onClose={onClose}>
+      {/* Category picker */}
+      {hasMultipleOpenCats && (
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ fontSize: 11, color: '#6b7890', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>
+            Für welche Kategorie?
+          </div>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            <button onClick={() => setSelectedCatId(null)} style={{
+              padding: '5px 14px', borderRadius: 999, fontSize: 12, cursor: 'pointer', border: 'none',
+              background: selectedCatId === null ? '#6cf0c2' : 'rgba(255,255,255,0.08)',
+              color: selectedCatId === null ? '#0a0f1e' : '#a6b0c3', fontWeight: selectedCatId === null ? 700 : 400,
+            }}>Alle</button>
+            {openCategories.map(cat => (
+              <button key={cat.categoryId ?? '__none__'} onClick={() => setSelectedCatId(cat.categoryId ?? null)} style={{
+                padding: '5px 14px', borderRadius: 999, fontSize: 12, cursor: 'pointer', border: 'none',
+                background: selectedCatId === cat.categoryId ? '#6cf0c2' : 'rgba(255,255,255,0.08)',
+                color: selectedCatId === cat.categoryId ? '#0a0f1e' : '#a6b0c3',
+                fontWeight: selectedCatId === cat.categoryId ? 700 : 400,
+              }}>{cat.categoryName}</button>
+            ))}
+          </div>
+          {preview.categories.some(c => c.alreadyClosed) && (
+            <p style={{ fontSize: 11, color: '#6b7890', margin: '8px 0 0' }}>
+              Bereits abgeschlossen: {preview.categories.filter(c => c.alreadyClosed).map(c => c.categoryName).join(', ')}
+            </p>
+          )}
+        </div>
+      )}
+
+      {!preview.allScoresComplete && (
+        <div style={{ background: 'rgba(255,200,0,0.1)', border: '1px solid rgba(255,200,0,0.3)', borderRadius: 8, padding: '10px 14px', marginBottom: 16 }}>
+          <p style={{ margin: 0, fontSize: 13, color: '#ffc400', fontWeight: 600 }}>Nicht alle Scores eingetragen!</p>
+          <p style={{ margin: '4px 0 0', fontSize: 12, color: '#a6b0c3' }}>
+            Fehlende Einträge bei: {preview.missingScoreAthletes.join(', ')}
+          </p>
+        </div>
+      )}
+
+      <p style={{ fontSize: 13, color: '#a6b0c3', margin: '0 0 16px' }}>
+        Haken = Athlet kommt in die nächste Runde weiter.
+      </p>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 20, maxHeight: 360, overflowY: 'auto' }}>
+        {visibleCats.map(cat => (
+          <div key={cat.categoryId ?? '__none__'}>
+            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#6cf0c2', marginBottom: 6 }}>
+              {cat.categoryName} — Top {cat.advancementCount} weiter
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {[...cat.advancing, ...cat.eliminated].map(a => athleteRow(a))}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
+        <PrimaryButton onClick={() => onConfirm(selectedCatId, [...advancing])} disabled={isPending}>
+          {isPending ? 'Schließt…' : confirmLabel}
+        </PrimaryButton>
+        <GhostButton onClick={onClose}>Abbrechen</GhostButton>
+      </div>
+    </Modal>
+  )
+}
+
+function RoundsSection({ compId, categories }: { compId: string; categories: CompetitionCategory[] }) {
+  const qc = useQueryClient()
+  const [roundModal, setRoundModal] = useState<{ mode: 'new' | 'edit'; round?: CompetitionRound } | null>(null)
+  const [roundForm, setRoundForm] = useState<RoundForm>(emptyRoundForm())
+  const [closeTarget, setCloseTarget] = useState<{ round: CompetitionRound; preview: AdvancementPreview } | null>(null)
+  const [previewLoading, setPreviewLoading] = useState<string | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+
+  const { data: rounds = [] } = useQuery({
+    queryKey: ['rounds', compId],
+    queryFn: () => api.rounds.list(compId),
+  })
+
+  const { data: allCatStatuses = [] } = useQuery({
+    queryKey: ['round-cat-statuses', compId],
+    queryFn: () => api.rounds.allCategoryStatuses(compId),
+  })
+  const catStatusByRound = new Map<string, RoundCategoryStatus[]>()
+  for (const s of allCatStatuses as RoundCategoryStatus[]) {
+    if (!catStatusByRound.has(s.roundId)) catStatusByRound.set(s.roundId, [])
+    catStatusByRound.get(s.roundId)!.push(s)
+  }
+
+  const saveRound = useMutation({
+    mutationFn: () => {
+      const payload: Omit<CompetitionRound, 'id'> = {
+        compId,
+        name: roundForm.name,
+        slug: roundForm.slug || roundForm.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''),
+        sortOrder: parseInt(roundForm.sortOrder) || 0,
+        advancementCount: roundForm.advancementCount ? parseInt(roundForm.advancementCount) : null,
+        startAt: roundForm.startAt || null,
+        endAt: roundForm.endAt || null,
+        status: roundForm.status,
+      }
+      if (roundModal?.mode === 'edit' && roundModal.round)
+        return api.rounds.update(roundModal.round.id, payload)
+      return api.rounds.create(payload)
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['rounds', compId] }); setRoundModal(null) },
+  })
+
+  const deleteRound = useMutation({
+    mutationFn: (id: string) => api.rounds.delete(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['rounds', compId] }),
+    onError: (err) => setDeleteError(err instanceof Error ? err.message : 'Fehler beim Löschen'),
+  })
+
+  const closeRound = useMutation({
+    mutationFn: ({ id, categoryId, ids }: { id: string; categoryId: string | null; ids: string[] }) =>
+      api.rounds.close(id, categoryId, ids),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['rounds', compId] })
+      qc.invalidateQueries({ queryKey: ['round-cat-statuses', compId] })
+      setCloseTarget(null)
+    },
+  })
+
+  async function openCloseModal(round: CompetitionRound) {
+    setPreviewLoading(round.id)
+    try {
+      const preview = await api.rounds.advancementPreview(round.id)
+      setCloseTarget({ round, preview })
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Fehler beim Laden der Vorschau')
+    } finally {
+      setPreviewLoading(null)
+    }
+  }
+
+  const inputStyle: React.CSSProperties = {
+    background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)',
+    borderRadius: 6, color: '#e8ecf3', fontSize: 13, padding: '6px 10px', boxSizing: 'border-box',
+  }
+
+  return (
+    <Card style={{ marginBottom: 24 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+        <SectionLabel>Runden</SectionLabel>
+        <PrimaryButton onClick={() => {
+          const nextOrder = (rounds as CompetitionRound[]).length > 0
+            ? Math.max(...(rounds as CompetitionRound[]).map(r => r.sortOrder)) + 1
+            : 0
+          setRoundForm({ ...emptyRoundForm(), sortOrder: nextOrder.toString() })
+          setRoundModal({ mode: 'new' })
+        }}>
+          + Runde
+        </PrimaryButton>
+      </div>
+
+      {deleteError && (
+        <div style={{ background: 'rgba(255,93,107,0.1)', border: '1px solid rgba(255,93,107,0.3)', borderRadius: 8, padding: '8px 14px', marginBottom: 12, display: 'flex', gap: 8, alignItems: 'center' }}>
+          <span style={{ fontSize: 13, color: '#ff5d6b', flex: 1 }}>{deleteError}</span>
+          <button onClick={() => setDeleteError(null)} style={{ background: 'none', border: 'none', color: '#ff5d6b', cursor: 'pointer', fontSize: 16 }}>×</button>
+        </div>
+      )}
+
+      {(rounds as CompetitionRound[]).length === 0 ? (
+        <p style={{ color: '#a6b0c3', fontSize: 13, margin: 0 }}>Noch keine Runden konfiguriert.</p>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {(rounds as CompetitionRound[]).map(round => {
+            const roundCatStatuses = catStatusByRound.get(round.id) ?? []
+            return (
+            <div key={round.id} style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 10, padding: '10px 14px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <span style={{ fontWeight: 600, color: '#e8ecf3', fontSize: 14 }}>{round.name}</span>
+                    <span style={{
+                      fontSize: 10, fontWeight: 700, padding: '1px 7px', borderRadius: 999,
+                      background: (ROUND_STATUS_COLOR[round.status] ?? '#a6b0c3') + '22',
+                      color: ROUND_STATUS_COLOR[round.status] ?? '#a6b0c3',
+                      textTransform: 'uppercase', letterSpacing: '0.08em',
+                    }}>
+                      {ROUND_STATUS_LABEL[round.status] ?? round.status}
+                    </span>
+                  </div>
+                  <span style={{ fontSize: 12, color: '#6b7890' }}>
+                    Reihenfolge: {round.sortOrder}
+                    {round.advancementCount != null ? ` · Top ${round.advancementCount} weiter` : ' · Finale'}
+                  </span>
+                  {/* Per-category status badges */}
+                  {roundCatStatuses.length > 0 && (
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6 }}>
+                      {roundCatStatuses.map(cs => {
+                        const catName = categories.find(c => c.id === cs.categoryId)?.name ?? cs.categoryId
+                        const closed = cs.status === 'CLOSED'
+                        return (
+                          <span key={cs.id} style={{
+                            fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 999,
+                            background: closed ? 'rgba(107,120,144,0.2)' : 'rgba(108,240,194,0.12)',
+                            color: closed ? '#6b7890' : '#6cf0c2',
+                            letterSpacing: '0.06em',
+                          }}>
+                            {catName}: {closed ? 'Abgeschlossen' : 'Aktiv'}
+                          </span>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                {round.status === 'ACTIVE' && round.advancementCount != null && (
+                  <PrimaryButton
+                    onClick={() => openCloseModal(round)}
+                    disabled={previewLoading === round.id}
+                    style={{ fontSize: 12, padding: '4px 12px', background: 'rgba(255,200,0,0.15)', color: '#ffc400', border: '1px solid rgba(255,200,0,0.3)' }}>
+                    {previewLoading === round.id ? '…' : 'Runde abschließen'}
+                  </PrimaryButton>
+                )}
+                <GhostButton onClick={() => { setRoundForm(roundToForm(round)); setRoundModal({ mode: 'edit', round }) }} style={{ fontSize: 12, padding: '4px 10px' }}>
+                  Bearbeiten
+                </GhostButton>
+                <DangerButton onClick={() => { if (confirm(`Runde "${round.name}" wirklich löschen?`)) { setDeleteError(null); deleteRound.mutate(round.id) } }} style={{ fontSize: 12, padding: '4px 10px' }}>
+                  Löschen
+                </DangerButton>
+              </div>
+              </div>
+            </div>
+          )})}
+        </div>
+      )}
+
+      {roundModal && (
+        <Modal title={roundModal.mode === 'new' ? 'Neue Runde' : 'Runde bearbeiten'} onClose={() => setRoundModal(null)}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div>
+              <div style={{ fontSize: 11, color: '#6b7890', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>Name *</div>
+              <input style={{ ...inputStyle, width: '100%' }} value={roundForm.name}
+                onChange={e => setRoundForm(p => ({ ...p, name: e.target.value }))} placeholder="z.B. Qualifikation" />
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div>
+                <div style={{ fontSize: 11, color: '#6b7890', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>Reihenfolge</div>
+                <input style={{ ...inputStyle, width: '100%' }} type="number" value={roundForm.sortOrder}
+                  onChange={e => setRoundForm(p => ({ ...p, sortOrder: e.target.value }))} />
+              </div>
+              <div>
+                <div style={{ fontSize: 11, color: '#6b7890', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>Top N weiter (leer = Finale)</div>
+                <input style={{ ...inputStyle, width: '100%' }} type="number" value={roundForm.advancementCount}
+                  onChange={e => setRoundForm(p => ({ ...p, advancementCount: e.target.value }))} placeholder="leer = Finale" />
+              </div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div>
+                <div style={{ fontSize: 11, color: '#6b7890', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>Startzeit</div>
+                <input style={{ ...inputStyle, width: '100%' }} type="datetime-local" value={roundForm.startAt}
+                  onChange={e => setRoundForm(p => ({ ...p, startAt: e.target.value }))} />
+              </div>
+              <div>
+                <div style={{ fontSize: 11, color: '#6b7890', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>Endzeit</div>
+                <input style={{ ...inputStyle, width: '100%' }} type="datetime-local" value={roundForm.endAt}
+                  onChange={e => setRoundForm(p => ({ ...p, endAt: e.target.value }))} />
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize: 11, color: '#6b7890', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>Status</div>
+              <select style={{ ...inputStyle, width: '100%', cursor: 'pointer' }} value={roundForm.status}
+                onChange={e => setRoundForm(p => ({ ...p, status: e.target.value }))}>
+                <option value="UPCOMING">Bevorstehend</option>
+                <option value="ACTIVE">Aktiv</option>
+                {roundModal?.mode === 'edit' && roundModal.round?.status === 'CLOSED' && (
+                  <option value="CLOSED">Abgeschlossen</option>
+                )}
+              </select>
+              {roundModal?.mode === 'edit' && roundModal.round?.status !== 'CLOSED' && (
+                <p style={{ fontSize: 11, color: '#6b7890', margin: '6px 0 0' }}>
+                  Zum Abschließen den Button „Runde abschließen" verwenden — dort kann pro Kategorie entschieden werden.
+                </p>
+              )}
+            </div>
+            <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+              <PrimaryButton onClick={() => saveRound.mutate()} disabled={saveRound.isPending || !roundForm.name}>
+                {saveRound.isPending ? 'Speichert…' : 'Speichern'}
+              </PrimaryButton>
+              <GhostButton onClick={() => setRoundModal(null)}>Abbrechen</GhostButton>
+            </div>
+            {saveRound.isError && (
+              <p style={{ color: '#ff5d6b', fontSize: 13, margin: 0 }}>
+                {saveRound.error instanceof Error ? saveRound.error.message : 'Fehler'}
+              </p>
+            )}
+          </div>
+        </Modal>
+      )}
+
+      {closeTarget && (
+        <AdvancementModal
+          round={closeTarget.round}
+          preview={closeTarget.preview}
+          categories={categories}
+          onClose={() => setCloseTarget(null)}
+          onConfirm={(categoryId, ids) => closeRound.mutate({ id: closeTarget.round.id, categoryId, ids })}
+          isPending={closeRound.isPending}
+        />
+      )}
+    </Card>
   )
 }
 
@@ -506,11 +911,6 @@ export function CompetitionDetail() {
     queryFn: () => api.categories.list(id!),
     enabled: !!id,
   })
-  const { data: routes = [] } = useQuery({
-    queryKey: ['routes', id],
-    queryFn: () => api.routes.list(id!),
-    enabled: !!id,
-  })
   const { data: org } = useQuery({ queryKey: ['org', 'mine'], queryFn: api.organizations.mine })
   const { data: athletes = [] } = useQuery({
     queryKey: ['athletes', org?.id],
@@ -520,6 +920,20 @@ export function CompetitionDetail() {
   const { data: registrations = [] } = useQuery({
     queryKey: ['registrations', id],
     queryFn: () => api.registrations.list(id!),
+    enabled: !!id,
+  })
+  const { data: rounds = [] } = useQuery({
+    queryKey: ['rounds', id],
+    queryFn: () => api.rounds.list(id!),
+    enabled: !!id,
+  })
+
+  // ── Round filter for routes ─────────────────────────────────────────────────
+  const [selectedRoundId, setSelectedRoundId] = useState<string>('')
+
+  const { data: routes = [] } = useQuery({
+    queryKey: ['routes', id, selectedRoundId],
+    queryFn: () => api.routes.list(id!, selectedRoundId || undefined),
     enabled: !!id,
   })
 
@@ -580,7 +994,6 @@ export function CompetitionDetail() {
 
   function startEdit(route: Route) { setNewRow(null); setEditingRouteId(route.id); setEditingRow(routeToRow(route)) }
   function cancelEdit() { setEditingRouteId(null) }
-  function startNew() { setEditingRouteId(null); setNewRow(emptyRow()) }
   function cancelNew() { setNewRow(null) }
 
   function buildPayload(row: RouteRow) {
@@ -588,7 +1001,9 @@ export function CompetitionDetail() {
       compId: id!,
       routeNumber: row.routeNumber || null, name: row.name || null,
       grade: row.grade || null, maxScore: row.maxScore ? parseInt(row.maxScore) : null,
-      sortOrder: row.sortOrder ? parseInt(row.sortOrder) : null, categoryId: row.categoryId || null,
+      sortOrder: row.sortOrder ? parseInt(row.sortOrder) : null,
+      categoryId: row.categoryId || null,
+      roundId: row.roundId || null,
     }
   }
 
@@ -604,6 +1019,8 @@ export function CompetitionDetail() {
     mutationFn: (routeId: string) => api.routes.delete(routeId),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['routes', id] }),
   })
+
+  function startNew() { setEditingRouteId(null); setNewRow(emptyRow(selectedRoundId)) }
 
   // ── Registrations ───────────────────────────────────────────────────────────
   type RegSortCol = 'athlete' | 'category' | 'startNumber' | 'status'
@@ -690,6 +1107,7 @@ export function CompetitionDetail() {
           pending={updateRoute.isPending}
           error={updateRoute.isError ? (updateRoute.error instanceof Error ? updateRoute.error.message : 'Fehler') : null}
           categories={categories as CompetitionCategory[]}
+          rounds={rounds as CompetitionRound[]}
         />
       )
     }
@@ -791,9 +1209,12 @@ export function CompetitionDetail() {
         )}
       </Card>
 
+      {/* Rounds */}
+      <RoundsSection compId={id!} categories={categories as CompetitionCategory[]} />
+
       {/* Routes */}
       <Card>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: (rounds as CompetitionRound[]).length > 0 ? 10 : 16 }}>
           <SectionLabel>Routen / Boulder</SectionLabel>
           <div style={{ display: 'flex', gap: 8 }}>
             <GhostButton onClick={() => setGrouped(g => !g)} style={{ fontSize: 12, padding: '4px 12px' }}>
@@ -802,6 +1223,32 @@ export function CompetitionDetail() {
             {!newRow && <PrimaryButton onClick={startNew}>+ Route</PrimaryButton>}
           </div>
         </div>
+
+        {(rounds as CompetitionRound[]).length > 0 && (
+          <div style={{ display: 'flex', gap: 6, marginBottom: 14, flexWrap: 'wrap' }}>
+            <button
+              onClick={() => setSelectedRoundId('')}
+              style={{
+                padding: '4px 12px', borderRadius: 999, fontSize: 12, cursor: 'pointer', border: 'none',
+                background: selectedRoundId === '' ? '#6cf0c2' : 'rgba(255,255,255,0.07)',
+                color: selectedRoundId === '' ? '#0a0f1e' : '#a6b0c3', fontWeight: selectedRoundId === '' ? 700 : 400,
+              }}>
+              Alle
+            </button>
+            {(rounds as CompetitionRound[]).map(r => (
+              <button
+                key={r.id}
+                onClick={() => setSelectedRoundId(r.id)}
+                style={{
+                  padding: '4px 12px', borderRadius: 999, fontSize: 12, cursor: 'pointer', border: 'none',
+                  background: selectedRoundId === r.id ? '#6cf0c2' : 'rgba(255,255,255,0.07)',
+                  color: selectedRoundId === r.id ? '#0a0f1e' : '#a6b0c3', fontWeight: selectedRoundId === r.id ? 700 : 400,
+                }}>
+                {r.name}
+              </button>
+            ))}
+          </div>
+        )}
 
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -849,6 +1296,7 @@ export function CompetitionDetail() {
                       pending={createRoute.isPending}
                       error={createRoute.isError ? (createRoute.error instanceof Error ? createRoute.error.message : 'Fehler') : null}
                       categories={categories as CompetitionCategory[]}
+                      rounds={rounds as CompetitionRound[]}
                     />
                   )}
                 </>

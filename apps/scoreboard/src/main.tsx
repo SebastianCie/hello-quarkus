@@ -7,6 +7,7 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BrowserRouter>
       <Routes>
+        <Route path="/:slug/:roundSlug" element={<App />} />
         <Route path="/:slug" element={<App />} />
         <Route path="*" element={
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', color: '#a6b0c3', fontSize: 16 }}>

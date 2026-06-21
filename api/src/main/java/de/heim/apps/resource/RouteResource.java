@@ -22,11 +22,16 @@ public class RouteResource {
 
     @GET
     public List<Route> list(@QueryParam("compId") UUID compId,
-                            @QueryParam("categoryId") UUID categoryId) {
+                            @QueryParam("categoryId") UUID categoryId,
+                            @QueryParam("roundId") UUID roundId) {
+        if (roundId != null && categoryId != null)
+            return Route.list("roundId = ?1 and (categoryId = ?2 or categoryId is null) ORDER BY sortOrder ASC",
+                    roundId, categoryId);
+        if (roundId != null) return Route.list("roundId = ?1 ORDER BY sortOrder ASC", roundId);
         if (compId != null && categoryId != null)
-            return Route.list("compId = ?1 and (categoryId = ?2 or categoryId is null)",
-                compId, categoryId);
-        if (compId != null) return Route.list("compId", compId);
+            return Route.list("compId = ?1 and (categoryId = ?2 or categoryId is null) ORDER BY sortOrder ASC",
+                    compId, categoryId);
+        if (compId != null) return Route.list("compId = ?1 ORDER BY sortOrder ASC", compId);
         return Route.listAll();
     }
 
@@ -62,6 +67,7 @@ public class RouteResource {
         entity.maxScore = data.maxScore;
         entity.sortOrder = data.sortOrder;
         entity.categoryId = data.categoryId;
+        entity.roundId = data.roundId;
         try {
             em.flush();
             return Response.ok(entity).build();
@@ -79,12 +85,12 @@ public class RouteResource {
 
     private Response duplicateError(PersistenceException e) {
         String msg = e.getMessage() != null ? e.getMessage().toLowerCase() : "";
-        String field = msg.contains("unique_number") ? "Nummer"
-                     : msg.contains("unique_name")   ? "Name"
-                     : msg.contains("unique_sort")   ? "Reihenfolge"
+        String field = (msg.contains("unique_round_number") || msg.contains("unique_number")) ? "Nummer"
+                     : (msg.contains("unique_round_name")   || msg.contains("unique_name"))   ? "Name"
+                     : (msg.contains("unique_round_sort")   || msg.contains("unique_sort"))   ? "Reihenfolge"
                      : "Feld";
         return Response.status(409)
-            .entity(Map.of("message", field + " existiert bereits in dieser Kategorie."))
+            .entity(Map.of("message", field + " existiert bereits in dieser Runde/Kategorie."))
             .build();
     }
 }

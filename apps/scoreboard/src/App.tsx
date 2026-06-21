@@ -173,7 +173,7 @@ function ScoreTable({ page, data }: { page: Page; data: ScoreboardData }) {
 // ── Main App ─────────────────────────────────────────────────────────────────
 
 export function App() {
-  const { slug } = useParams<{ slug: string }>()
+  const { slug, roundSlug } = useParams<{ slug: string; roundSlug?: string }>()
   const [data, setData] = useState<ScoreboardData | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [intervalMs, setIntervalMs] = useState(5000)
@@ -196,10 +196,10 @@ export function App() {
   // Load scoreboard data
   const load = useCallback(() => {
     if (!slug) return
-    fetchScoreboard(slug)
+    fetchScoreboard(slug, roundSlug)
       .then(d => { setData(d); setError(null) })
       .catch(e => setError(e.message))
-  }, [slug])
+  }, [slug, roundSlug])
 
   useEffect(() => { load() }, [load])
 
@@ -283,6 +283,7 @@ export function App() {
         <div>
           <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', color: ACCENT, marginBottom: 4 }}>
             Beta Battle · {data.competition.name}
+            {data.round && ` · ${data.round.name}`}
           </div>
           <div style={{ fontSize: 26, fontWeight: 700 }}>
             {currentPage.category.name}

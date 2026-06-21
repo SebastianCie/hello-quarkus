@@ -23,16 +23,23 @@ export type ScoringConfigDto = {
   eventType: string; points: number; label: string | null
 }
 
+export type RoundDto = {
+  id: string; name: string; slug: string; status: string; sortOrder: number
+}
+
 export type ScoreboardData = {
   competition: { id: string; name: string; slug: string; discipline: string; status: string }
+  round: RoundDto | null
+  allRounds: RoundDto[]
   scoringConfig: ScoringConfigDto[]
   categories: CategoryBoard[]
 }
 
 export type AppSettingsMap = Record<string, string>
 
-export async function fetchScoreboard(slug: string): Promise<ScoreboardData> {
-  const res = await fetch(`${BASE}/scoreboard/${slug}`)
+export async function fetchScoreboard(slug: string, roundSlug?: string): Promise<ScoreboardData> {
+  const path = roundSlug ? `${BASE}/scoreboard/${slug}/${roundSlug}` : `${BASE}/scoreboard/${slug}`
+  const res = await fetch(path)
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   return res.json()
 }

@@ -59,11 +59,12 @@ function Header({ reg }: Props) {
         Beta Battle · {disciplineLabel(comp.discipline)}
       </div>
       <div style={{ fontSize: 18, fontWeight: 700 }}>{comp.name}</div>
-      {reg.category && (
-        <div style={{ fontSize: 13, color: '#a6b0c3', marginTop: 2 }}>
-          Kategorie: {reg.category.name}
-        </div>
-      )}
+      <div style={{ fontSize: 13, color: '#a6b0c3', marginTop: 2, display: 'flex', gap: 10 }}>
+        {reg.category && <span>Kategorie: {reg.category.name}</span>}
+        {reg.currentRound && (
+          <span style={{ color: '#6cf0c2' }}>· {reg.currentRound.name}</span>
+        )}
+      </div>
     </div>
   )
 }
@@ -194,11 +195,12 @@ function RouteCard({ route, score, registrationId, athleteId, onSave }: {
 export function BoulderListPage({ reg }: Props) {
   const queryClient = useQueryClient()
   const categoryId = reg.registration.categoryId
+  const roundId = reg.currentRound?.id ?? null
   const [mapOpen, setMapOpen] = useState(false)
 
   const { data: routes, isLoading: routesLoading } = useQuery({
-    queryKey: ['routes', reg.competition.id, categoryId],
-    queryFn: () => fetchRoutes(reg.competition.id, categoryId),
+    queryKey: ['routes', reg.competition.id, categoryId, roundId],
+    queryFn: () => fetchRoutes(reg.competition.id, categoryId, roundId),
   })
 
   const { data: scores, isLoading: scoresLoading } = useQuery({

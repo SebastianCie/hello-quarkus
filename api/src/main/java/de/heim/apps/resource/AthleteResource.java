@@ -3,7 +3,10 @@ package de.heim.apps.resource;
 import de.heim.apps.entity.Athlete;
 import de.heim.apps.entity.Competition;
 import de.heim.apps.entity.CompetitionCategory;
+import de.heim.apps.entity.CompetitionRound;
 import de.heim.apps.entity.Registration;
+import de.heim.apps.entity.RoundCategoryStatus;
+import de.heim.apps.entity.RoundParticipant;
 import de.heim.apps.entity.Score;
 import io.quarkus.security.identity.SecurityIdentity;
 import jakarta.inject.Inject;
@@ -40,10 +43,34 @@ public class AthleteResource {
                 if (comp == null || !"ACTIVE".equals(comp.status)) return null;
                 CompetitionCategory cat = reg.categoryId != null
                     ? CompetitionCategory.findById(reg.categoryId) : null;
+
+                // Find the active round this athlete participates in (respecting per-category status)
+                CompetitionRound currentRound = null;
+                List<RoundParticipant> myParticipations = RoundParticipant.list("registrationId", reg.id);
+                if (!myParticipations.isEmpty()) {
+                    Set<UUID> myRoundIds = myParticipations.stream()
+                            .map(p -> p.roundId).collect(java.util.stream.Collectors.toSet());
+                    List<CompetitionRound> rounds = CompetitionRound.list(
+                            "compId = ?1 ORDER BY sortOrder ASC", reg.compId);
+                    for (CompetitionRound r : rounds) {
+                        if (!myRoundIds.contains(r.id)) continue;
+                        if ("CLOSED".equals(r.status)) continue;
+                        // Check per-category status: if athlete's category is closed in this round, skip
+                        if (reg.categoryId != null) {
+                            RoundCategoryStatus catStatus = RoundCategoryStatus.find(
+                                    "roundId = ?1 and categoryId = ?2", r.id, reg.categoryId).firstResult();
+                            if (catStatus != null && "CLOSED".equals(catStatus.status)) continue;
+                        }
+                        currentRound = r;
+                        break;
+                    }
+                }
+
                 Map<String, Object> entry = new HashMap<>();
                 entry.put("registration", reg);
                 entry.put("competition", comp);
                 entry.put("category", cat);
+                if (currentRound != null) entry.put("currentRound", currentRound);
                 return entry;
             })
             .filter(Objects::nonNull)

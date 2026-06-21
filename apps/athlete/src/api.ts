@@ -38,10 +38,17 @@ export type Registration = {
   categoryId: string | null; status: string; startNumber: string | null
 }
 
+export type CompetitionRound = {
+  id: string; compId: string; name: string; slug: string
+  sortOrder: number; status: string
+  advancementCount: number | null
+}
+
 export type ActiveRegistration = {
   registration: Registration
   competition: Competition
   category: Category | null
+  currentRound?: CompetitionRound | null
 }
 
 export type MeResponse = {
@@ -72,8 +79,8 @@ export async function fetchMe(): Promise<MeResponse> {
   return res.json()
 }
 
-export async function fetchRoutes(compId: string, categoryId: string | null): Promise<Route[]> {
-  const params = new URLSearchParams({ compId })
+export async function fetchRoutes(compId: string, categoryId: string | null, roundId?: string | null): Promise<Route[]> {
+  const params = new URLSearchParams(roundId ? { roundId } : { compId })
   if (categoryId) params.set('categoryId', categoryId)
   const res = await fetch(`${BASE}/routes?${params}`, { headers: authHeaders() })
   if (!res.ok) throw new Error(`HTTP ${res.status}`)

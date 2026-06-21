@@ -30,4 +30,7 @@ public class Route extends PanacheEntityBase {
 
     @Column(name = "category_id")
     public UUID categoryId;
+
+    @Column(name = "round_id")
+    public UUID roundId;
 }

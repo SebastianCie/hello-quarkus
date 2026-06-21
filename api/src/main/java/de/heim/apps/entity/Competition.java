@@ -65,6 +65,9 @@ public class Competition extends PanacheEntityBase {
         return hallMap != null && hallMap.length > 0;
     }
 
+    @Column(name = "tiebreak_use_previous_round")
+    public boolean tiebreakUsePreviousRound = false;
+
     @Column(name = "created_at")
     public OffsetDateTime createdAt = OffsetDateTime.now();
 }
