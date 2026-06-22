@@ -1,6 +1,6 @@
-import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '@/auth/AuthProvider'
-import { keycloak, DEV_MODE } from '@/auth/keycloak'
+import { doLogout } from '@/auth/auth'
 import { BetaBattleLogo } from './FormUI'
 
 const NAV: { to: string; label: string; end?: boolean }[] = [
@@ -14,12 +14,11 @@ const NAV: { to: string; label: string; end?: boolean }[] = [
 
 export function DashboardLayout() {
   const auth = useAuth()
-  const navigate = useNavigate()
 
-  function logout() {
+  async function logout() {
     localStorage.removeItem('bb_org_setup_done')
-    if (DEV_MODE) { navigate('/register'); return }
-    keycloak!.logout({ redirectUri: window.location.origin + '/register' })
+    await doLogout()
+    window.location.href = '/login'
   }
 
   return (

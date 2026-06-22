@@ -4,7 +4,6 @@ import { fetchRoutes, fetchScores, upsertScore } from '../api'
 import type { ActiveRegistration, Score } from '../api'
 
 const ACCENT = '#6cf0c2'
-const DARK = '#020231'
 
 type Props = { reg: ActiveRegistration }
 

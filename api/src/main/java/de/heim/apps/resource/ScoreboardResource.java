@@ -77,10 +77,13 @@ public class ScoreboardResource {
                     case "ZONE":
                     case "ZONE_1":
                     case "ZONE_2":
-                        if (s.zoned) total += cfg.points.doubleValue();
+                        if (s.zoned && !s.topped) total += cfg.points.doubleValue();
                         break;
                     case "ATTEMPT_DEDUCTION":
-                        total += cfg.points.doubleValue() * s.attempts;
+                        // Deduct only for unsuccessful attempts (successful attempt is excluded)
+                        if (s.topped || s.zoned) {
+                            total += cfg.points.doubleValue() * (s.attempts - 1);
+                        }
                         break;
                     default: break;
                 }

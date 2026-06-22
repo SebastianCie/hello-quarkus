@@ -26,9 +26,9 @@
     "submit": "Create Account",
     "alreadyHaveAccount": "Already have an account?",
     "login": "Log in",
-    "successTitle": "Account created!",
-    "successMessage": "Your account has been successfully created. You can now set up your organization.",
-    "continue": "Continue",
+    "successTitle": "Verify your email",
+    "successMessage": "We've sent you a confirmation email. Please click the link to activate your account.",
+    "continue": "Go to Login",
     "passwordMismatch": "Passwords do not match.",
     "passwordTooShort": "Password must be at least 8 characters long.",
     "errorMessage": "An error occurred while creating the account."

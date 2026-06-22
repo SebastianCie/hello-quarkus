@@ -1,20 +1,53 @@
 import { useState, useEffect, useRef } from 'react'
-import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query'
-import { keycloak } from './auth/keycloak'
+import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query'
+import { refreshAccessToken, doLogin, doLogout } from './auth/auth'
 import { fetchMe } from './api'
 import type { ActiveRegistration } from './api'
 import { BoulderListPage } from './pages/BoulderListPage'
 import { CompetitionSelectPage } from './pages/CompetitionSelectPage'
 import { ScoreboardPage } from './pages/ScoreboardPage'
+import { ProfilePage } from './pages/ProfilePage'
 
 const queryClient = new QueryClient()
 
 const ACCENT = '#6cf0c2'
 const DARK = '#020231'
 
-// ── Login Screen ─────────────────────────────────────────────────────────────
+const inputStyle: React.CSSProperties = {
+  width: '100%',
+  background: 'rgba(255,255,255,0.07)',
+  border: '1px solid rgba(255,255,255,0.15)',
+  borderRadius: 10,
+  color: '#e8ecf3',
+  fontSize: 15,
+  padding: '12px 14px',
+  boxSizing: 'border-box',
+  fontFamily: 'inherit',
+  outline: 'none',
+}
 
-function LoginPage() {
+// ── Login Page ────────────────────────────────────────────────────────────────
+
+function LoginPage({ onLogin }: { onLogin: () => void }) {
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError(null)
+    setLoading(true)
+    try {
+      await doLogin(email, password)
+      onLogin()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Anmeldung fehlgeschlagen')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <div style={{
       minHeight: '100vh', display: 'flex', flexDirection: 'column',
@@ -28,17 +61,40 @@ function LoginPage() {
       <p style={{ color: '#a6b0c3', fontSize: 14, textAlign: 'center', marginBottom: 32, maxWidth: 300, lineHeight: 1.6 }}>
         Melde dich mit deinem Beta Battle-Konto an, um deine Wettkampfergebnisse einzutragen.
       </p>
-      <button
-        onClick={() => keycloak.login({ redirectUri: window.location.href })}
-        style={{
-          padding: '15px 32px', borderRadius: 12,
-          background: ACCENT, color: DARK,
-          border: 'none', fontSize: 16, fontWeight: 700,
-          cursor: 'pointer', fontFamily: 'inherit', width: '100%', maxWidth: 320,
-        }}
-      >
-        Anmelden
-      </button>
+      <form onSubmit={handleSubmit} style={{ width: '100%', maxWidth: 320, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <input
+          type="email"
+          placeholder="E-Mail"
+          value={email}
+          onChange={e => setEmail(e.target.value)}
+          required
+          style={inputStyle}
+        />
+        <input
+          type="password"
+          placeholder="Passwort"
+          value={password}
+          onChange={e => setPassword(e.target.value)}
+          required
+          style={inputStyle}
+        />
+        {error && (
+          <p style={{ color: '#ff5d6b', fontSize: 13, margin: 0, textAlign: 'center' }}>{error}</p>
+        )}
+        <button
+          type="submit"
+          disabled={loading}
+          style={{
+            marginTop: 8,
+            padding: '15px 32px', borderRadius: 12,
+            background: loading ? 'rgba(108,240,194,0.4)' : ACCENT, color: DARK,
+            border: 'none', fontSize: 16, fontWeight: 700,
+            cursor: loading ? 'default' : 'pointer', fontFamily: 'inherit', width: '100%',
+          }}
+        >
+          {loading ? 'Anmelden…' : 'Anmelden'}
+        </button>
+      </form>
     </div>
   )
 }
@@ -59,7 +115,7 @@ function NoCompetitionPage({ firstName }: { firstName: string }) {
 
 // ── No Profile Page ───────────────────────────────────────────────────────────
 
-function NoProfilePage() {
+function NoProfilePage({ onLogout }: { onLogout: () => void }) {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
       <div style={{ fontSize: 48, marginBottom: 16 }}>🪪</div>
@@ -68,7 +124,7 @@ function NoProfilePage() {
         Du hast noch kein Athletenprofil. Melde dich über den QR-Code einer Veranstaltung an.
       </p>
       <button
-        onClick={() => keycloak.logout()}
+        onClick={onLogout}
         style={{
           marginTop: 24, padding: '12px 24px', borderRadius: 10,
           background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)',
@@ -83,7 +139,7 @@ function NoProfilePage() {
 
 // ── Top Bar ──────────────────────────────────────────────────────────────────
 
-function TopBar({ name }: { name: string }) {
+function TopBar({ name, onLogout }: { name: string; onLogout: () => void }) {
   const [open, setOpen] = useState(false)
 
   return (
@@ -127,7 +183,7 @@ function TopBar({ name }: { name: string }) {
             boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
           }}>
             <button
-              onClick={() => keycloak.logout({ redirectUri: window.location.origin })}
+              onClick={onLogout}
               style={{
                 width: '100%', padding: '12px 16px', background: 'none',
                 border: 'none', color: '#ff5d6b', fontSize: 14,
@@ -146,7 +202,7 @@ function TopBar({ name }: { name: string }) {
 
 // ── Tab Bar ───────────────────────────────────────────────────────────────────
 
-type Tab = 'boulder' | 'rangliste'
+type Tab = 'boulder' | 'rangliste' | 'profil'
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   {
@@ -169,6 +225,16 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
         <rect x="2" y="13" width="5" height="9" rx="1" />
         <rect x="9.5" y="8" width="5" height="14" rx="1" />
         <rect x="17" y="10" width="5" height="12" rx="1" />
+      </svg>
+    ),
+  },
+  {
+    id: 'profil',
+    label: 'Profil',
+    icon: (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+        <circle cx="12" cy="8" r="4" />
+        <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" fillRule="evenodd" />
       </svg>
     ),
   },
@@ -227,7 +293,6 @@ function useSwipe(onLeft: () => void, onRight: () => void) {
       if (startX.current === null || startY.current === null) return
       const dx = e.changedTouches[0].clientX - startX.current
       const dy = e.changedTouches[0].clientY - startY.current
-      // Only trigger if horizontal swipe is dominant and long enough
       if (Math.abs(dx) > 48 && Math.abs(dx) > Math.abs(dy) * 1.5) {
         if (dx < 0) onLeft()
         else onRight()
@@ -240,20 +305,27 @@ function useSwipe(onLeft: () => void, onRight: () => void) {
 
 // ── Competition Shell (with tabs) ────────────────────────────────────────────
 
+const TAB_ORDER: Tab[] = ['boulder', 'rangliste', 'profil']
+
 function CompetitionShell({ reg }: { reg: ActiveRegistration }) {
   const [tab, setTab] = useState<Tab>('boulder')
 
   const swipe = useSwipe(
-    () => setTab('rangliste'),   // swipe left → rangliste
-    () => setTab('boulder'),     // swipe right → boulder
+    () => {
+      const idx = TAB_ORDER.indexOf(tab)
+      if (idx < TAB_ORDER.length - 1) setTab(TAB_ORDER[idx + 1])
+    },
+    () => {
+      const idx = TAB_ORDER.indexOf(tab)
+      if (idx > 0) setTab(TAB_ORDER[idx - 1])
+    },
   )
 
   return (
     <div style={{ paddingTop: 48, paddingBottom: 57 }} {...swipe}>
-      {tab === 'boulder'
-        ? <BoulderListPage reg={reg} />
-        : <ScoreboardPage reg={reg} />
-      }
+      {tab === 'boulder' && <BoulderListPage reg={reg} />}
+      {tab === 'rangliste' && <ScoreboardPage reg={reg} />}
+      {tab === 'profil' && <ProfilePage />}
       <BottomTabBar active={tab} onChange={setTab} />
     </div>
   )
@@ -261,8 +333,15 @@ function CompetitionShell({ reg }: { reg: ActiveRegistration }) {
 
 // ── Authenticated Shell ───────────────────────────────────────────────────────
 
-function AuthenticatedApp() {
+function AuthenticatedApp({ onLogout }: { onLogout: () => void }) {
+  const qc = useQueryClient()
   const [selectedReg, setSelectedReg] = useState<ActiveRegistration | null>(null)
+
+  const handleLogout = async () => {
+    await doLogout()
+    qc.clear()
+    onLogout()
+  }
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ['me'],
@@ -280,7 +359,7 @@ function AuthenticatedApp() {
 
   if (isError) {
     const is404 = error instanceof Error && error.message.includes('404')
-    if (is404) return <NoProfilePage />
+    if (is404) return <NoProfilePage onLogout={handleLogout} />
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ff5d6b', fontSize: 14, padding: 24, textAlign: 'center' }}>
         Verbindung zur API nicht möglich.<br />
@@ -299,7 +378,7 @@ function AuthenticatedApp() {
   if (registrations.length === 0) {
     return (
       <>
-        <TopBar name={fullName} />
+        <TopBar name={fullName} onLogout={handleLogout} />
         <div style={{ paddingTop: 48 }}><NoCompetitionPage firstName={athlete.firstName} /></div>
       </>
     )
@@ -310,7 +389,7 @@ function AuthenticatedApp() {
   if (!active) {
     return (
       <>
-        <TopBar name={fullName} />
+        <TopBar name={fullName} onLogout={handleLogout} />
         <div style={{ paddingTop: 48 }}>
           <CompetitionSelectPage
             firstName={athlete.firstName}
@@ -324,7 +403,7 @@ function AuthenticatedApp() {
 
   return (
     <>
-      <TopBar name={fullName} />
+      <TopBar name={fullName} onLogout={handleLogout} />
       <CompetitionShell reg={active} />
     </>
   )
@@ -332,23 +411,24 @@ function AuthenticatedApp() {
 
 // ── Root ──────────────────────────────────────────────────────────────────────
 
+type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated'
+
 function Root() {
-  const [kcReady, setKcReady] = useState(false)
-  const [kcAuthenticated, setKcAuthenticated] = useState(false)
+  const [status, setStatus] = useState<AuthStatus>('loading')
 
   useEffect(() => {
-    keycloak.init({ onLoad: 'check-sso', checkLoginIframe: false })
-      .then(authenticated => {
-        setKcAuthenticated(authenticated)
-        setKcReady(true)
-        if (authenticated) {
-          setInterval(() => keycloak.updateToken(30).catch(() => {}), 30_000)
-        }
-      })
-      .catch(() => setKcReady(true))
+    refreshAccessToken().then(token => {
+      setStatus(token ? 'authenticated' : 'unauthenticated')
+    })
   }, [])
 
-  if (!kcReady) {
+  useEffect(() => {
+    if (status !== 'authenticated') return
+    const id = setInterval(() => refreshAccessToken(), 14 * 60 * 1000)
+    return () => clearInterval(id)
+  }, [status])
+
+  if (status === 'loading') {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#a6b0c3', fontSize: 14 }}>
         Lädt…
@@ -356,9 +436,11 @@ function Root() {
     )
   }
 
-  if (!kcAuthenticated) return <LoginPage />
+  if (status === 'unauthenticated') {
+    return <LoginPage onLogin={() => setStatus('authenticated')} />
+  }
 
-  return <AuthenticatedApp />
+  return <AuthenticatedApp onLogout={() => setStatus('unauthenticated')} />
 }
 
 export default function App() {

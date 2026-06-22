@@ -1,5 +1,5 @@
-import { createContext, useContext, useEffect, useState } from 'react'
-import { keycloak, DEV_MODE } from './keycloak'
+import { createContext, useContext, useEffect, useRef, useState } from 'react'
+import { DEV_MODE, parseJwtClaims, refreshAccessToken, setAccessToken } from './auth'
 
 type AuthState =
   | { status: 'loading' }
@@ -12,44 +12,48 @@ export function useAuth() {
   return useContext(AuthContext)
 }
 
+function stateFromToken(token: string): Extract<AuthState, { status: 'authenticated' }> {
+  const claims = parseJwtClaims(token)
+  return {
+    status: 'authenticated',
+    token,
+    userId: (claims?.sub as string) ?? '',
+    name: (claims?.email as string) ?? '',
+  }
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [auth, setAuth] = useState<AuthState>({ status: 'loading' })
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => {
     if (DEV_MODE) {
-      // Dev-User UUID entspricht dem Seed in db/dev/V100__dev_seed.sql
       localStorage.setItem('bb_org_setup_done', '1')
       setAuth({ status: 'authenticated', token: '', userId: '00000000-0000-0000-0000-000000000001', name: 'Dev User' })
       return
     }
 
-    // check-sso: detects existing session without forcing a redirect for unauthenticated users
-    keycloak!.init({ onLoad: 'check-sso', checkLoginIframe: false })
-      .then((authenticated) => {
-        if (authenticated) {
-          setAuth({
-            status: 'authenticated',
-            token: keycloak!.token!,
-            userId: keycloak!.subject!,
-            name: (keycloak!.tokenParsed as Record<string, string>)?.preferred_username ?? '',
-          })
-          setInterval(() => {
-            keycloak!.updateToken(30)
-              .then((refreshed) => {
-                if (refreshed) {
-                  setAuth((prev) => prev.status === 'authenticated'
-                    ? { ...prev, token: keycloak!.token! }
-                    : prev)
-                }
-              })
-              .catch(() => keycloak!.logout())
-          }, 30_000)
-        } else {
+    refreshAccessToken().then(token => {
+      if (!token) { setAuth({ status: 'unauthenticated' }); return }
+      setAuth(stateFromToken(token))
+
+      // Proaktiv kurz vor Ablauf (Token lebt 15 min) erneuern
+      intervalRef.current = setInterval(async () => {
+        const next = await refreshAccessToken()
+        if (!next) {
+          clearInterval(intervalRef.current!)
           setAuth({ status: 'unauthenticated' })
+        } else {
+          setAuth(stateFromToken(next))
         }
-      })
-      .catch(() => setAuth({ status: 'unauthenticated' }))
+      }, 14 * 60 * 1000)
+    })
+
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current) }
   }, [])
+
+  // Login-Seite setzt Token per window.location.href → vollständiger Reload → useEffect läuft neu
+  // Logout per doLogout() + window.location.href → dasselbe Muster
 
   if (auth.status === 'loading') {
     return (
@@ -65,4 +69,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   return <AuthContext.Provider value={auth}>{children}</AuthContext.Provider>
+}
+
+// Hilfsfunktion für Seiten die explizit den Token nach Login setzen wollen (ohne Reload)
+export function applyLoginToken(token: string) {
+  setAccessToken(token)
 }

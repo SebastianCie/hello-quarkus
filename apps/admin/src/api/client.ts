@@ -1,10 +1,10 @@
-import { keycloak, DEV_MODE } from '@/auth/keycloak'
+import { DEV_MODE, getAccessToken } from '@/auth/auth'
 
 const BASE = '/api/v1'
 
 function authHeader(): Record<string, string> {
   if (DEV_MODE) return {}
-  const token = keycloak?.token
+  const token = getAccessToken()
   return token ? { Authorization: `Bearer ${token}` } : {}
 }
 
@@ -244,7 +244,7 @@ export const api = {
       form.append('file', file)
       const res = await fetch(`${BASE}/competitions/${id}/hall-map`, {
         method: 'POST',
-        headers: authHeader(),
+        headers: { ...authHeader() },
         body: form,
       })
       if (!res.ok) throw new Error(await res.text().catch(() => res.statusText))

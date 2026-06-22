@@ -1,0 +1,146 @@
+# Secret wird per CLI angelegt (nicht in Git):
+# oc create secret generic api-secret \
+#   --from-literal=DB_PASSWORD=<passwort> \
+#   -n sebastianeichh-dev
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: api-config
+  namespace: sebastianeichh-dev
+data:
+  DB_HOST: postgresql
+  DB_PORT: "5432"
+  DB_USER: betabattle
+  BETABATTLE_ISSUER: https://api-sebastianeichh-dev.apps.rm2.thpm.p1.openshiftapps.com
+  CORS_ORIGINS: >-
+    https://admin-sebastianeichh-dev.apps.rm2.thpm.p1.openshiftapps.com,
+    https://athlete-sebastianeichh-dev.apps.rm2.thpm.p1.openshiftapps.com,
+    https://register-sebastianeichh-dev.apps.rm2.thpm.p1.openshiftapps.com,
+    https://scoreboard-sebastianeichh-dev.apps.rm2.thpm.p1.openshiftapps.com
+  FRONTEND_URL: https://admin-sebastianeichh-dev.apps.rm2.thpm.p1.openshiftapps.com
+  SMTP_HOST: localhost
+  SMTP_PORT: "1025"
+  SMTP_FROM: noreply@betabattle.app
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+  namespace: sebastianeichh-dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: api
+  template:
+    metadata:
+      labels:
+        app: api
+    spec:
+      containers:
+        - name: api
+          image: ghcr.io/sebastianeichhammer/beta-battle-api:latest
+          ports:
+            - containerPort: 8080
+          env:
+            - name: DB_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: api-config
+                  key: DB_HOST
+            - name: DB_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: api-config
+                  key: DB_PORT
+            - name: DB_USER
+              valueFrom:
+                configMapKeyRef:
+                  name: api-config
+                  key: DB_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: api-secret
+                  key: DB_PASSWORD
+            - name: BETABATTLE_ISSUER
+              valueFrom:
+                configMapKeyRef:
+                  name: api-config
+                  key: BETABATTLE_ISSUER
+            - name: CORS_ORIGINS
+              valueFrom:
+                configMapKeyRef:
+                  name: api-config
+                  key: CORS_ORIGINS
+            - name: FRONTEND_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: api-config
+                  key: FRONTEND_URL
+            - name: SMTP_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: api-config
+                  key: SMTP_HOST
+            - name: SMTP_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: api-config
+                  key: SMTP_PORT
+            - name: SMTP_FROM
+              valueFrom:
+                configMapKeyRef:
+                  name: api-config
+                  key: SMTP_FROM
+          readinessProbe:
+            httpGet:
+              path: /q/health/ready
+              port: 9000
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /q/health/live
+              port: 9000
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 200m
+              memory: 512Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api
+  namespace: sebastianeichh-dev
+spec:
+  selector:
+    app: api
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+    - name: management
+      port: 9000
+      targetPort: 9000
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: api
+  namespace: sebastianeichh-dev
+spec:
+  host: api-sebastianeichh-dev.apps.rm2.thpm.p1.openshiftapps.com
+  to:
+    kind: Service
+    name: api
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect

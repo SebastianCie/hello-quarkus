@@ -1,12 +1,9 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useMutation } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { api } from '@/api/client'
-import { keycloak, DEV_MODE } from '@/auth/keycloak'
 import { BetaBattleLogo, Field, Input, PrimaryButton } from '@/components/FormUI'
 
-type FormData = { username: string; email: string; password: string; confirmPassword: string }
+type FormData = { displayName: string; email: string; password: string; confirmPassword: string }
 
 const pageStyle: React.CSSProperties = {
   minHeight: '100vh',
@@ -19,29 +16,40 @@ const pageStyle: React.CSSProperties = {
 export function Register() {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const [form, setForm] = useState<FormData>({ username: '', email: '', password: '', confirmPassword: '' })
+  const [form, setForm] = useState<FormData>({ displayName: '', email: '', password: '', confirmPassword: '' })
   const [validationError, setValidationError] = useState<string | null>(null)
+  const [serverError, setServerError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
   const [done, setDone] = useState(false)
-
-  const mutation = useMutation({
-    mutationFn: (data: FormData) =>
-      api.account.register({ username: data.username, email: data.email || undefined, password: data.password }),
-    onSuccess: () => {
-      if (DEV_MODE) setDone(true)
-      else keycloak!.login({ redirectUri: `${window.location.origin}/setup` })
-    },
-  })
 
   function set(field: keyof FormData, value: string) {
     setForm(prev => ({ ...prev, [field]: value }))
     setValidationError(null)
+    setServerError(null)
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (form.password !== form.confirmPassword) { setValidationError(t('register.passwordMismatch')); return }
     if (form.password.length < 8) { setValidationError(t('register.passwordTooShort')); return }
-    mutation.mutate(form)
+    if (!form.email.includes('@')) { setValidationError('Bitte eine gültige E-Mail-Adresse angeben.'); return }
+
+    setLoading(true)
+    setServerError(null)
+    try {
+      const res = await fetch('/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: form.email, password: form.password, displayName: form.displayName || undefined }),
+      })
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok) { setServerError(body.message ?? t('register.errorMessage')); return }
+      setDone(true)
+    } catch {
+      setServerError(t('register.errorMessage'))
+    } finally {
+      setLoading(false)
+    }
   }
 
   if (done) {
@@ -52,10 +60,15 @@ export function Register() {
           padding: 48, maxWidth: 440, width: '100%', textAlign: 'center',
           boxShadow: '0 0 0 1px rgba(108,240,194,0.1), 0 20px 50px rgba(0,0,0,0.4)',
         }}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>✓</div>
-          <h2 style={{ color: '#6cf0c2', margin: '0 0 8px', fontSize: 22 }}>{t('register.successTitle')}</h2>
-          <p style={{ color: '#a6b0c3', margin: '0 0 24px' }}>{t('register.successMessage')}</p>
-          <PrimaryButton onClick={() => navigate('/setup')}>{t('register.continue')}</PrimaryButton>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>✉️</div>
+          <h2 style={{ color: '#6cf0c2', margin: '0 0 8px', fontSize: 22 }}>E-Mail bestätigen</h2>
+          <p style={{ color: '#a6b0c3', margin: '0 0 8px' }}>
+            Wir haben dir eine Bestätigungs-E-Mail an <strong style={{ color: '#e8ecf3' }}>{form.email}</strong> geschickt.
+          </p>
+          <p style={{ color: '#a6b0c3', margin: '0 0 24px', fontSize: 13 }}>
+            Bitte klicke auf den Link in der E-Mail, um dein Konto zu aktivieren.
+          </p>
+          <PrimaryButton onClick={() => navigate('/login')}>Zum Login</PrimaryButton>
         </div>
       </div>
     )
@@ -89,11 +102,11 @@ export function Register() {
             padding: 24, marginBottom: 24, boxShadow: '0 10px 30px rgba(0,0,0,0.25)',
           }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <Field label={t('register.username')} required>
-                <Input value={form.username} onChange={e => set('username', e.target.value)} placeholder={t('register.usernamePlaceholder')} autoComplete="username" required />
+              <Field label={t('register.username')}>
+                <Input value={form.displayName} onChange={e => set('displayName', e.target.value)} placeholder={t('register.usernamePlaceholder')} autoComplete="name" />
               </Field>
-              <Field label={t('register.email')}>
-                <Input type="email" value={form.email} onChange={e => set('email', e.target.value)} placeholder={t('register.emailPlaceholder')} autoComplete="email" />
+              <Field label={t('register.email')} required>
+                <Input type="email" value={form.email} onChange={e => set('email', e.target.value)} placeholder={t('register.emailPlaceholder')} autoComplete="email" required />
               </Field>
               <Field label={t('register.password')} required>
                 <Input type="password" value={form.password} onChange={e => set('password', e.target.value)} placeholder="••••••••" autoComplete="new-password" required />
@@ -104,21 +117,21 @@ export function Register() {
             </div>
           </div>
 
-          {(validationError || mutation.isError) && (
+          {(validationError || serverError) && (
             <p style={{ color: '#ff5d6b', fontSize: 13, marginBottom: 16 }}>
-              {validationError ?? (mutation.error instanceof Error ? mutation.error.message : t('register.errorMessage'))}
+              {validationError ?? serverError}
             </p>
           )}
 
-          <PrimaryButton type="submit" disabled={mutation.isPending} style={{ width: '100%', padding: '13px 20px', fontSize: 15 }}>
-            {mutation.isPending ? t('common.loading') : t('register.submit')}
+          <PrimaryButton type="submit" disabled={loading} style={{ width: '100%', padding: '13px 20px', fontSize: 15 }}>
+            {loading ? t('common.loading') : t('register.submit')}
           </PrimaryButton>
 
           <p style={{ textAlign: 'center', marginTop: 20, color: '#a6b0c3', fontSize: 13 }}>
             {t('register.alreadyHaveAccount')}{' '}
             <button
               type="button"
-              onClick={() => DEV_MODE ? navigate('/setup') : keycloak!.login({ redirectUri: `${window.location.origin}/dashboard` })}
+              onClick={() => navigate('/login')}
               style={{ background: 'none', border: 'none', color: '#6cf0c2', cursor: 'pointer', fontSize: 13, fontWeight: 600, padding: 0, fontFamily: 'inherit' }}
             >
               {t('register.login')}

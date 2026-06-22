@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: register
+  namespace: sebastianeichh-dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: register
+  template:
+    metadata:
+      labels:
+        app: register
+    spec:
+      containers:
+        - name: register
+          image: ghcr.io/sebastianeichhammer/beta-battle-register:latest
+          ports:
+            - containerPort: 8080
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: register
+  namespace: sebastianeichh-dev
+spec:
+  selector:
+    app: register
+  ports:
+    - port: 8080
+      targetPort: 8080
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: register
+  namespace: sebastianeichh-dev
+spec:
+  host: register-sebastianeichh-dev.apps.rm2.thpm.p1.openshiftapps.com
+  to:
+    kind: Service
+    name: register
+  port:
+    targetPort: 8080
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect

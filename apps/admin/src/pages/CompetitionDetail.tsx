@@ -534,7 +534,7 @@ const EVENT_TYPES = [
   { value: 'ZONE',              label: 'Zone',                  color: '#ffc400' },
   { value: 'ZONE_1',            label: 'Zone 1 (untere Zone)',  color: '#ffc400' },
   { value: 'ZONE_2',            label: 'Zone 2 (obere Zone)',   color: '#ffaa00' },
-  { value: 'ATTEMPT_DEDUCTION', label: 'Abzug pro Versuch',     color: '#ff5d6b' },
+  { value: 'ATTEMPT_DEDUCTION', label: 'Abzug pro nicht erfolgreichen Versuch', color: '#ff5d6b' },
 ]
 
 const PRESETS: Record<string, { label: string; rules: Omit<ScoringConfig, 'id' | 'sortOrder'>[] }> = {
@@ -639,7 +639,11 @@ function ScoringSection({ compId }: { compId: string }) {
 
       {rules.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: adding ? 16 : 0 }}>
-          {(rules as ScoringConfig[]).map(rule => {
+          {(rules as ScoringConfig[]).slice().sort((a, b) => {
+            const ai = EVENT_TYPES.findIndex(e => e.value === a.eventType)
+            const bi = EVENT_TYPES.findIndex(e => e.value === b.eventType)
+            return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi)
+          }).map(rule => {
             const def = EVENT_TYPES.find(e => e.value === rule.eventType)
             const isNeg = rule.points < 0
             return (
@@ -913,9 +917,9 @@ export function CompetitionDetail() {
   })
   const { data: org } = useQuery({ queryKey: ['org', 'mine'], queryFn: api.organizations.mine })
   const { data: athletes = [] } = useQuery({
-    queryKey: ['athletes', comp?.orgId],
-    queryFn: () => api.athletes.list(comp!.orgId),
-    enabled: !!comp?.orgId,
+    queryKey: ['athletes', org?.id],
+    queryFn: () => api.athletes.list(org!.id),
+    enabled: !!org,
     staleTime: 0,
   })
   const { data: registrations = [] } = useQuery({
@@ -1033,6 +1037,7 @@ export function CompetitionDetail() {
     if (regSortCol === col) setRegSortDir(d => d === 'asc' ? 'desc' : 'asc')
     else { setRegSortCol(col); setRegSortDir('asc') }
   }
+  const [regCategoryFilter, setRegCategoryFilter] = useState<string | null>(null)
 
   // Flatten RegistrationWithAthlete → plain lists
   const regs: Registration[] = (registrations as RegistrationWithAthlete[]).map(rwa => rwa.registration)
@@ -1041,7 +1046,10 @@ export function CompetitionDetail() {
   )
 
   const sortedRegistrations = useMemo(() => {
-    return [...regs].sort((a, b) => {
+    const filtered = regCategoryFilter
+      ? regs.filter(r => r.categoryId === regCategoryFilter)
+      : regs
+    return [...filtered].sort((a, b) => {
       let av = '', bv = ''
       if (regSortCol === 'athlete') {
         const aa = athleteByRegId[a.id]
@@ -1061,7 +1069,7 @@ export function CompetitionDetail() {
       const cmp = av.localeCompare(bv, 'de')
       return regSortDir === 'asc' ? cmp : -cmp
     })
-  }, [registrations, regSortCol, regSortDir, athletes, categories])
+  }, [registrations, regSortCol, regSortDir, categories, regCategoryFilter])
 
   const STATUSES = [
     { value: 'PENDING', label: 'Ausstehend' },
@@ -1085,7 +1093,7 @@ export function CompetitionDetail() {
     }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['registrations', id] })
-      qc.invalidateQueries({ queryKey: ['athletes', comp?.orgId] })
+      qc.invalidateQueries({ queryKey: ['athletes', org?.id] })
       setAddForm({ athleteId: '', categoryId: '', startNumber: '' })
     },
   })
@@ -1389,6 +1397,24 @@ export function CompetitionDetail() {
           <p style={{ color: '#ff5d6b', fontSize: 13, margin: '-12px 0 16px' }}>
             {addReg.error instanceof Error ? addReg.error.message : 'Fehler'}
           </p>
+        )}
+
+        {/* Category filter pills */}
+        {(categories as CompetitionCategory[]).length > 0 && regs.length > 0 && (
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14 }}>
+            <button onClick={() => setRegCategoryFilter(null)} style={{
+              fontSize: 12, padding: '4px 12px', borderRadius: 999, border: 'none', cursor: 'pointer',
+              background: regCategoryFilter === null ? '#6cf0c2' : 'rgba(255,255,255,0.07)',
+              color: regCategoryFilter === null ? '#020231' : '#a6b0c3', fontWeight: 600,
+            }}>Alle</button>
+            {(categories as CompetitionCategory[]).map(c => (
+              <button key={c.id} onClick={() => setRegCategoryFilter(c.id)} style={{
+                fontSize: 12, padding: '4px 12px', borderRadius: 999, border: 'none', cursor: 'pointer',
+                background: regCategoryFilter === c.id ? '#6cf0c2' : 'rgba(255,255,255,0.07)',
+                color: regCategoryFilter === c.id ? '#020231' : '#a6b0c3', fontWeight: 600,
+              }}>{c.name}</button>
+            ))}
+          </div>
         )}
 
         {/* Registration list */}

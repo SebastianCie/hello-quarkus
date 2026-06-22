@@ -1,11 +1,11 @@
-import { getToken } from './auth/keycloak'
+import { getAccessToken, refreshAccessToken } from './auth/auth'
 
 const BASE = '/api/v1'
 
 export type Athlete = {
-  id: string; firstName: string; lastName: string
+  id: string; orgId: string | null; firstName: string; lastName: string
   dateOfBirth: string | null; gender: string | null
-  club: string | null; nation: string | null
+  club: string | null; nation: string | null; licenseNumber: string | null
 }
 
 export type Competition = {
@@ -69,12 +69,29 @@ export type Score = {
 }
 
 function authHeaders(): Record<string, string> {
-  const token = getToken()
+  const token = getAccessToken()
   return token ? { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } : {}
 }
 
+export async function updateAthlete(id: string, data: Partial<Athlete>): Promise<Athlete> {
+  const res = await fetch(`${BASE}/athletes/${id}`, {
+    method: 'PUT',
+    headers: authHeaders(),
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  return res.json()
+}
+
 export async function fetchMe(): Promise<MeResponse> {
-  const res = await fetch(`${BASE}/athletes/me`, { headers: authHeaders() })
+  let res = await fetch(`${BASE}/athletes/me`, { headers: authHeaders() })
+  if (res.status === 401) {
+    // Token abgelaufen → einmal erneuern und nochmal versuchen
+    const newToken = await refreshAccessToken()
+    if (newToken) {
+      res = await fetch(`${BASE}/athletes/me`, { headers: authHeaders() })
+    }
+  }
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   return res.json()
 }

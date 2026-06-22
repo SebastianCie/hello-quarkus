@@ -4,6 +4,8 @@ import de.heim.apps.entity.Athlete;
 import de.heim.apps.entity.Competition;
 import de.heim.apps.entity.CompetitionCategory;
 import de.heim.apps.entity.Registration;
+import de.heim.apps.entity.User;
+import de.heim.apps.service.PasswordService;
 import io.quarkus.security.identity.SecurityIdentity;
 import org.eclipse.microprofile.jwt.JsonWebToken;
 import jakarta.inject.Inject;
@@ -37,10 +39,14 @@ public class CompetitionResource {
     @Inject
     JsonWebToken jwt;
 
+    @Inject
+    PasswordService passwordService;
+
     record SelfRegisterRequest(
         String firstName, String lastName, String dateOfBirth,
         String gender, String club, String nation, String licenseNumber,
-        UUID categoryId
+        UUID categoryId,
+        String email, String password
     ) {}
 
     @GET
@@ -75,8 +81,8 @@ public class CompetitionResource {
         Competition comp = Competition.find("registrationToken", token).firstResult();
         if (comp == null) return Response.status(404)
             .entity(Map.of("message", "Ungültiger Registrierungslink.")).build();
-        Response err = checkRegistrationOpen(comp);
-        if (err != null) return err;
+        if (!comp.selfRegistration) return Response.status(403)
+            .entity(Map.of("message", "Für diesen Wettkampf ist keine Selbstregistrierung aktiviert.")).build();
         List<CompetitionCategory> categories = CompetitionCategory.list("compId", comp.id);
         return Response.ok(Map.of("competition", comp, "categories", categories)).build();
     }
@@ -138,16 +144,31 @@ public class CompetitionResource {
         Response err = checkRegistrationOpen(comp);
         if (err != null) return err;
 
-        UUID keycloakUserId = null;
-        if (!identity.isAnonymous()) {
+        UUID linkedUserId = null;
+
+        // Optionaler Account-Erstellung (E-Mail + Passwort)
+        if (req.email() != null && !req.email().isBlank() && req.password() != null && req.password().length() >= 8) {
+            String email = req.email().trim().toLowerCase();
+            if (User.findByEmail(email) != null) {
+                return Response.status(409).entity(Map.of("message", "Diese E-Mail-Adresse ist bereits registriert.")).build();
+            }
+            User user = new User();
+            user.email = email;
+            user.passwordHash = passwordService.hash(req.password());
+            user.displayName = req.firstName() + " " + req.lastName();
+            user.role = "ATHLETE";
+            user.emailVerified = true; // vor Ort registriert, keine E-Mail-Verifikation nötig
+            user.persist();
+            linkedUserId = user.id;
+        } else if (!identity.isAnonymous()) {
             try {
-                keycloakUserId = UUID.fromString(identity.getPrincipal().getName());
+                linkedUserId = UUID.fromString(identity.getPrincipal().getName());
             } catch (IllegalArgumentException ignored) {}
         }
 
         Athlete athlete = new Athlete();
         athlete.orgId = comp.orgId;
-        athlete.userId = keycloakUserId;
+        athlete.userId = linkedUserId;
         athlete.firstName = req.firstName();
         athlete.lastName = req.lastName();
         athlete.dateOfBirth = req.dateOfBirth() != null && !req.dateOfBirth().isBlank()

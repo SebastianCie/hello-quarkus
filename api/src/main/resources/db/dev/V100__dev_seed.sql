@@ -1,5 +1,16 @@
 -- Dev-only seed data — wird NUR im dev-Profil eingespielt (quarkus.flyway.locations)
 -- Dev-User UUID: 00000000-0000-0000-0000-000000000001
+-- Dev-Login: dev@betabattle.local / kein Passwort (Auth-Bypass via %dev.beta-battle.dev-user-id)
+
+INSERT INTO users (id, email, password_hash, display_name, role, email_verified)
+VALUES (
+    '00000000-0000-0000-0000-000000000001',
+    'dev@betabattle.local',
+    NULL,
+    'Dev User',
+    'ORGANIZER',
+    true
+) ON CONFLICT DO NOTHING;
 
 INSERT INTO organization (id, name, slug, contact_email)
 VALUES (
