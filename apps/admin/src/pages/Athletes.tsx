@@ -219,7 +219,7 @@ export function Athletes() {
                     <td style={td}>{athlete.firstName}</td>
                     <td style={td}>
                       {athlete.dateOfBirth
-                        ? new Date(athlete.dateOfBirth).toLocaleDateString('de-DE')
+                        ? new Date(athlete.dateOfBirth + 'T12:00:00').toLocaleDateString('de-DE')
                         : dash}
                     </td>
                     <td style={td}>{GENDERS.find(g => g.value === athlete.gender)?.label ?? dash}</td>

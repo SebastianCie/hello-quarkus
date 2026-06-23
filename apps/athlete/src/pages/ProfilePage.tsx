@@ -144,7 +144,7 @@ export function ProfilePage() {
           <InfoRow label="Vorname" value={athlete.firstName} />
           <InfoRow label="Nachname" value={athlete.lastName} />
           <InfoRow label="Geburtsdatum" value={athlete.dateOfBirth
-            ? new Date(athlete.dateOfBirth).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })
+            ? new Date(athlete.dateOfBirth + 'T12:00:00').toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })
             : null}
           />
           <InfoRow label="Geschlecht" value={genderLabel(athlete.gender)} />
