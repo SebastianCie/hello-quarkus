@@ -18,8 +18,11 @@ data:
     https://register-sebastianeichh-dev.apps.rm2.thpm.p1.openshiftapps.com,
     https://scoreboard-sebastianeichh-dev.apps.rm2.thpm.p1.openshiftapps.com
   FRONTEND_URL: https://admin-sebastianeichh-dev.apps.rm2.thpm.p1.openshiftapps.com
-  SMTP_FROM: noreply@betabattle.app
-  QUARKUS_MAILER_MOCK: "true"
+  SMTP_HOST: smtp.gmail.com
+  SMTP_PORT: "587"
+  SMTP_TLS: REQUIRED
+  SMTP_USERNAME: betabattle.climb.score.win@gmail.com
+  SMTP_FROM: betabattle.climb.score.win@gmail.com
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -77,16 +80,36 @@ spec:
                 configMapKeyRef:
                   name: api-config
                   key: FRONTEND_URL
-            - name: QUARKUS_MAILER_MOCK
+            - name: SMTP_HOST
               valueFrom:
                 configMapKeyRef:
                   name: api-config
-                  key: QUARKUS_MAILER_MOCK
+                  key: SMTP_HOST
+            - name: SMTP_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: api-config
+                  key: SMTP_PORT
+            - name: SMTP_TLS
+              valueFrom:
+                configMapKeyRef:
+                  name: api-config
+                  key: SMTP_TLS
+            - name: SMTP_USERNAME
+              valueFrom:
+                configMapKeyRef:
+                  name: api-config
+                  key: SMTP_USERNAME
             - name: SMTP_FROM
               valueFrom:
                 configMapKeyRef:
                   name: api-config
                   key: SMTP_FROM
+            - name: SMTP_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: smtp-secret
+                  key: SMTP_PASSWORD
           readinessProbe:
             httpGet:
               path: /q/health/ready
