@@ -263,11 +263,6 @@ function RoundsSection({ compId, categories }: { compId: string; categories: Com
   const [previewLoading, setPreviewLoading] = useState<string | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
-  const { data: appSettings } = useQuery({
-    queryKey: ['settings'],
-    queryFn: api.settings.getAll,
-  })
-
   const { data: rounds = [] } = useQuery({
     queryKey: ['rounds', compId],
     queryFn: () => api.rounds.list(compId),
@@ -938,6 +933,10 @@ export function CompetitionDetail() {
     queryKey: ['rounds', id],
     queryFn: () => api.rounds.list(id!),
     enabled: !!id,
+  })
+  const { data: appSettings } = useQuery({
+    queryKey: ['settings'],
+    queryFn: api.settings.getAll,
   })
 
   // ── Round filter for routes ─────────────────────────────────────────────────
