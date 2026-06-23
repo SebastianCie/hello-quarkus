@@ -55,17 +55,12 @@ function hasZone(data: ScoreboardData) {
   return data.scoringConfig.some(c => c.eventType === 'ZONE' || c.eventType === 'ZONE_1' || c.eventType === 'ZONE_2')
 }
 
-function hasFlash(data: ScoreboardData) {
-  return data.scoringConfig.some(c => c.eventType === 'FLASH')
-}
-
 function hasScoringConfig(data: ScoreboardData) {
   return data.scoringConfig.length > 0
 }
 
-function isFlash(entry: AthleteEntry, data: ScoreboardData) {
-  if (!hasFlash(data)) return false
-  return entry.scores.some(s => s.topped && s.attempts === 1)
+function scoredCount(entry: AthleteEntry) {
+  return entry.scores.filter(s => s.attempts > 0).length
 }
 
 function formatPoints(pts: number) {
@@ -117,13 +112,14 @@ function ScoreTable({ page, data }: { page: Page; data: ScoreboardData }) {
           <th style={{ ...thStyle, textAlign: 'center' }}>Tops</th>
           {showZone && <th style={{ ...thStyle, textAlign: 'center' }}>Zonen</th>}
           {showPoints && <th style={{ ...thStyle, textAlign: 'right' }}>Punkte</th>}
+          {data.totalRoutes > 0 && <th style={{ ...thStyle, textAlign: 'center' }}>Bewertet</th>}
         </tr>
       </thead>
       <tbody>
         {page.athletes.map((entry, i) => {
-          const flashed = isFlash(entry, data)
           const rowBg = i % 2 === 0 ? 'rgba(255,255,255,0.02)' : 'transparent'
           const rankColor = entry.rank === 1 ? '#ffd700' : entry.rank === 2 ? '#c0c0c0' : entry.rank === 3 ? '#cd7f32' : '#e8ecf3'
+          const scored = scoredCount(entry)
 
           return (
             <tr key={entry.registration.id} style={{ background: rowBg }}>
@@ -140,13 +136,6 @@ function ScoreTable({ page, data }: { page: Page; data: ScoreboardData }) {
                   <span style={{ fontWeight: 600 }}>
                     {entry.athlete.lastName}, {entry.athlete.firstName}
                   </span>
-                  {flashed && (
-                    <span style={{
-                      fontSize: 11, fontWeight: 700, padding: '2px 7px', borderRadius: 999,
-                      background: 'rgba(255,215,0,0.18)', color: '#ffd700',
-                      letterSpacing: '0.06em', flexShrink: 0,
-                    }}>FLASH</span>
-                  )}
                 </div>
               </td>
               <td style={{ ...numStyle, color: ACCENT, fontWeight: 700 }}>
@@ -160,6 +149,14 @@ function ScoreTable({ page, data }: { page: Page; data: ScoreboardData }) {
               {showPoints && (
                 <td style={{ ...numStyle, textAlign: 'right', fontWeight: 700, color: entry.totalPoints > 0 ? '#e8ecf3' : '#6b7890', fontSize: 20 }}>
                   {entry.totalPoints > 0 ? formatPoints(entry.totalPoints) : '—'}
+                </td>
+              )}
+              {data.totalRoutes > 0 && (
+                <td style={{ ...numStyle, fontSize: 15 }}>
+                  <span style={{ color: scored === data.totalRoutes ? ACCENT : '#a6b0c3', fontWeight: scored > 0 ? 600 : 400 }}>
+                    {scored}
+                  </span>
+                  <span style={{ color: '#4a5568' }}> / {data.totalRoutes}</span>
                 </td>
               )}
             </tr>

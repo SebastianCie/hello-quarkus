@@ -33,6 +33,7 @@ export type ScoreboardData = {
   allRounds: RoundDto[]
   scoringConfig: ScoringConfigDto[]
   categories: CategoryBoard[]
+  totalRoutes: number
 }
 
 export type AppSettingsMap = Record<string, string>

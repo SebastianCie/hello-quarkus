@@ -53,7 +53,8 @@ public class ScoreboardResource {
             RoundDto round,
             List<RoundDto> allRounds,
             List<ScoringConfigDto> scoringConfig,
-            List<CategoryBoard> categories
+            List<CategoryBoard> categories,
+            int totalRoutes
     ) {}
     record CompetitionDto(String id, String name, String slug, String discipline, String status) {}
     record ScoringConfigDto(String eventType, double points, String label) {}
@@ -281,7 +282,8 @@ public class ScoreboardResource {
                 new RoundDto(round.id.toString(), round.name, round.slug, round.status, round.sortOrder),
                 roundDtos,
                 configDtos,
-                boards
+                boards,
+                routeIds.size()
         );
         return Response.ok(data).build();
     }
