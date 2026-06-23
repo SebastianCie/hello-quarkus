@@ -77,16 +77,11 @@ spec:
                 configMapKeyRef:
                   name: api-config
                   key: FRONTEND_URL
-            - name: SMTP_HOST
+            - name: QUARKUS_MAILER_MOCK
               valueFrom:
                 configMapKeyRef:
                   name: api-config
-                  key: SMTP_HOST
-            - name: SMTP_PORT
-              valueFrom:
-                configMapKeyRef:
-                  name: api-config
-                  key: SMTP_PORT
+                  key: QUARKUS_MAILER_MOCK
             - name: SMTP_FROM
               valueFrom:
                 configMapKeyRef:
