@@ -286,8 +286,8 @@ function RoundsSection({ compId, categories }: { compId: string; categories: Com
         slug: roundForm.slug || roundForm.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''),
         sortOrder: parseInt(roundForm.sortOrder) || 0,
         advancementCount: roundForm.advancementCount ? parseInt(roundForm.advancementCount) : null,
-        startAt: roundForm.startAt || null,
-        endAt: roundForm.endAt || null,
+        startAt: roundForm.startAt ? roundForm.startAt + ':00Z' : null,
+        endAt: roundForm.endAt ? roundForm.endAt + ':00Z' : null,
         status: roundForm.status,
       }
       if (roundModal?.mode === 'edit' && roundModal.round)
