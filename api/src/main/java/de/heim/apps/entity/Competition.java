@@ -68,6 +68,9 @@ public class Competition extends PanacheEntityBase {
     @Column(name = "tiebreak_use_previous_round")
     public boolean tiebreakUsePreviousRound = false;
 
+    @Column(name = "gender_based_categories")
+    public boolean genderBasedCategories = false;
+
     @Column(name = "created_at")
     public OffsetDateTime createdAt = OffsetDateTime.now();
 }

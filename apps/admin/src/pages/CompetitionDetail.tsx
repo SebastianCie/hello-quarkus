@@ -1220,28 +1220,39 @@ export function CompetitionDetail() {
       <Card style={{ marginBottom: 24 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
           <SectionLabel>Kategorien</SectionLabel>
-          <PrimaryButton onClick={openNewCat}>+ Kategorie</PrimaryButton>
+          {!comp.genderBasedCategories && <PrimaryButton onClick={openNewCat}>+ Kategorie</PrimaryButton>}
         </div>
-        {categories.length === 0 ? (
-          <p style={{ color: '#a6b0c3', fontSize: 13, margin: 0 }}>Noch keine Kategorien angelegt.</p>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {(categories as CompetitionCategory[]).map(cat => (
-              <div key={cat.id} style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'rgba(255,255,255,0.04)', borderRadius: 10, padding: '10px 14px' }}>
-                <div style={{ flex: 1 }}>
-                  <span style={{ fontWeight: 600, color: '#e8ecf3', fontSize: 14 }}>{cat.name}</span>
-                  <span style={{ color: '#a6b0c3', fontSize: 12, marginLeft: 10 }}>
-                    {GENDERS.find(g => g.value === cat.gender)?.label ?? ''}
-                    {cat.ageMin && ` · ab ${cat.ageMin}`}
-                    {cat.ageMax && ` · bis ${cat.ageMax}`}
-                    {cat.maxParticipants && ` · max. ${cat.maxParticipants}`}
-                  </span>
-                </div>
-                <GhostButton onClick={() => openEditCat(cat)}>Bearbeiten</GhostButton>
-                <DangerButton onClick={() => { if (confirm(`"${cat.name}" wirklich löschen?`)) deleteCat.mutate(cat.id) }}>Löschen</DangerButton>
-              </div>
-            ))}
+        {comp.genderBasedCategories && (
+          <div style={{
+            padding: '10px 14px', borderRadius: 10,
+            background: 'rgba(108,240,194,0.08)', border: '1px solid rgba(108,240,194,0.2)',
+            color: '#6cf0c2', fontSize: 13,
+          }}>
+            Kategorie nach Geschlecht aktiv — Athleten werden automatisch in <strong>Frauen</strong> und <strong>Männer</strong> gruppiert.
           </div>
+        )}
+        {!comp.genderBasedCategories && (
+          categories.length === 0 ? (
+            <p style={{ color: '#a6b0c3', fontSize: 13, margin: 0 }}>Noch keine Kategorien angelegt.</p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {(categories as CompetitionCategory[]).map(cat => (
+                <div key={cat.id} style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'rgba(255,255,255,0.04)', borderRadius: 10, padding: '10px 14px' }}>
+                  <div style={{ flex: 1 }}>
+                    <span style={{ fontWeight: 600, color: '#e8ecf3', fontSize: 14 }}>{cat.name}</span>
+                    <span style={{ color: '#a6b0c3', fontSize: 12, marginLeft: 10 }}>
+                      {GENDERS.find(g => g.value === cat.gender)?.label ?? ''}
+                      {cat.ageMin && ` · ab ${cat.ageMin}`}
+                      {cat.ageMax && ` · bis ${cat.ageMax}`}
+                      {cat.maxParticipants && ` · max. ${cat.maxParticipants}`}
+                    </span>
+                  </div>
+                  <GhostButton onClick={() => openEditCat(cat)}>Bearbeiten</GhostButton>
+                  <DangerButton onClick={() => { if (confirm(`"${cat.name}" wirklich löschen?`)) deleteCat.mutate(cat.id) }}>Löschen</DangerButton>
+                </div>
+              ))}
+            </div>
+          )
         )}
       </Card>
 

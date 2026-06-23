@@ -31,13 +31,14 @@ const STATUSES = [
 type CompForm = {
   name: string; slug: string; discipline: string; format: string; status: string
   startDate: string; endDate: string; venue: string; locationId: string
-  selfRegistration: boolean; registrationOpensAt: string; registrationClosesAt: string
+  selfRegistration: boolean; genderBasedCategories: boolean
+  registrationOpensAt: string; registrationClosesAt: string
 }
 
 const emptyForm = (): CompForm => ({
   name: '', slug: '', discipline: 'BOULDERN', format: 'FUN', status: 'DRAFT',
   startDate: '', endDate: '', venue: '', locationId: '', selfRegistration: false,
-  registrationOpensAt: '', registrationClosesAt: '',
+  genderBasedCategories: false, registrationOpensAt: '', registrationClosesAt: '',
 })
 
 export function Competitions() {
@@ -69,6 +70,7 @@ export function Competitions() {
       endDate: comp.endDate?.slice(0, 16) ?? '',
       venue: comp.venue ?? '', locationId: comp.locationId ?? '',
       selfRegistration: comp.selfRegistration,
+      genderBasedCategories: comp.genderBasedCategories,
       registrationOpensAt: comp.registrationOpensAt?.slice(0, 16) ?? '',
       registrationClosesAt: comp.registrationClosesAt?.slice(0, 16) ?? '',
     })
@@ -98,6 +100,7 @@ export function Competitions() {
         venue: form.venue || null,
         locationId: form.locationId || null,
         selfRegistration: form.selfRegistration,
+        genderBasedCategories: form.genderBasedCategories,
         registrationOpensAt: form.selfRegistration && form.registrationOpensAt ? new Date(form.registrationOpensAt).toISOString() : null,
         registrationClosesAt: form.selfRegistration && form.registrationClosesAt ? new Date(form.registrationClosesAt).toISOString() : null,
       }
@@ -248,6 +251,24 @@ export function Competitions() {
               />
               <span style={{ fontSize: 13, color: '#e8ecf3' }}>Selbstregistrierung für Athleten</span>
             </label>
+
+            <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={form.genderBasedCategories}
+                onChange={e => set('genderBasedCategories', e.target.checked)}
+                style={{ width: 16, height: 16, accentColor: '#6cf0c2' }}
+              />
+              <span style={{ fontSize: 13, color: '#e8ecf3' }}>Kategorie nach Geschlecht (Frauen / Männer)</span>
+            </label>
+            {form.genderBasedCategories && modal?.mode === 'edit' && (
+              <div style={{
+                background: 'rgba(255,196,0,0.08)', border: '1px solid rgba(255,196,0,0.3)',
+                borderRadius: 8, padding: '8px 12px', fontSize: 13, color: '#ffc400',
+              }}>
+                Vorhandene manuelle Kategorien werden ignoriert, bleiben aber gespeichert. Athleten werden automatisch nach Geschlecht gruppiert.
+              </div>
+            )}
 
             {form.selfRegistration && (
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>

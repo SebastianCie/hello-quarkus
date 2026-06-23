@@ -59,6 +59,7 @@ export type Competition = {
   venue: string | null
   locationId: string | null
   selfRegistration: boolean
+  genderBasedCategories: boolean
   registrationOpensAt: string | null
   registrationClosesAt: string | null
   registrationToken?: string | null

@@ -144,6 +144,10 @@ public class CompetitionResource {
         Response err = checkRegistrationOpen(comp);
         if (err != null) return err;
 
+        if (comp.genderBasedCategories && (req.gender() == null || req.gender().isBlank())) {
+            return Response.status(400).entity(Map.of("message", "Geschlecht ist bei diesem Wettkampf Pflichtfeld.")).build();
+        }
+
         UUID linkedUserId = null;
 
         // Optionaler Account-Erstellung (E-Mail + Passwort)
@@ -182,7 +186,7 @@ public class CompetitionResource {
         Registration reg = new Registration();
         reg.compId = comp.id;
         reg.athleteId = athlete.id;
-        reg.categoryId = req.categoryId();
+        reg.categoryId = comp.genderBasedCategories ? null : req.categoryId();
         reg.persist();
 
         return Response.status(201).entity(Map.of("registration", reg, "athlete", athlete)).build();
@@ -225,6 +229,7 @@ public class CompetitionResource {
         entity.selfRegistration = data.selfRegistration;
         entity.registrationOpensAt = data.registrationOpensAt;
         entity.registrationClosesAt = data.registrationClosesAt;
+        entity.genderBasedCategories = data.genderBasedCategories;
         return Response.ok(entity).build();
     }
 

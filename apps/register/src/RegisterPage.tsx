@@ -12,6 +12,7 @@ async function fetchSettings(): Promise<Record<string, string>> {
 type Competition = {
   id: string; name: string; discipline: string; startDate: string | null; endDate: string | null
   registrationOpensAt: string | null; registrationClosesAt: string | null
+  genderBasedCategories: boolean
 }
 type Category = { id: string; name: string; gender: string | null }
 type PublicView = { competition: Competition; categories: Category[] }
@@ -160,8 +161,11 @@ function ProfileStep({ token, comp, categories, disciplineLabel }: {
     )
   }
 
+  const genderRequired = comp.genderBasedCategories
+
   const valid = !!(
     form.firstName.trim() && form.lastName.trim() &&
+    (!genderRequired || form.gender) &&
     form.email.includes('@') && form.password.length >= 8 &&
     form.password === form.passwordConfirm
   )
@@ -192,14 +196,14 @@ function ProfileStep({ token, comp, categories, disciplineLabel }: {
               onChange={e => setForm(p => ({ ...p, dateOfBirth: e.target.value }))} />
           </Field>
 
-          <Field text="Geschlecht">
+          <Field text="Geschlecht" required={genderRequired}>
             <select style={{ ...inputStyle, cursor: 'pointer' }} value={form.gender}
               onChange={e => setForm(p => ({ ...p, gender: e.target.value }))}>
               {GENDERS.map(g => <option key={g.value} value={g.value}>{g.label}</option>)}
             </select>
           </Field>
 
-          {categories.length > 0 && (
+          {!comp.genderBasedCategories && categories.length > 0 && (
             <Field text="Kategorie">
               <select style={{ ...inputStyle, cursor: 'pointer' }} value={form.categoryId}
                 onChange={e => setForm(p => ({ ...p, categoryId: e.target.value }))}>

@@ -229,26 +229,48 @@ public class ScoreboardResource {
                 : Score.<Score>list("registrationId in ?1 and routeId in ?2", regIds, routeIds)
                         .stream().collect(Collectors.groupingBy(s -> s.registrationId));
 
-        Map<UUID, List<Registration>> regsByCategory = regs.stream()
-                .filter(r -> r.categoryId != null)
-                .collect(Collectors.groupingBy(r -> r.categoryId));
-        List<Registration> noCatRegs = regs.stream().filter(r -> r.categoryId == null).toList();
-
         List<ScoringConfigDto> configDtos = configs.stream()
                 .map(c -> new ScoringConfigDto(c.eventType, c.points.doubleValue(), c.label)).toList();
 
         List<CategoryBoard> boards = new ArrayList<>();
-        for (CompetitionCategory cat : categories) {
-            List<Registration> catRegs = regsByCategory.getOrDefault(cat.id, List.of());
-            if (catRegs.isEmpty()) continue;
-            boards.add(new CategoryBoard(
-                    new CategoryDto(cat.id.toString(), cat.name),
-                    buildAndRank(catRegs, athleteMap, scoresByReg, configs, comp, round)));
-        }
-        if (!noCatRegs.isEmpty()) {
-            boards.add(new CategoryBoard(
-                    new CategoryDto("", "Ohne Kategorie"),
-                    buildAndRank(noCatRegs, athleteMap, scoresByReg, configs, comp, round)));
+
+        if (comp.genderBasedCategories) {
+            Map<String, List<Registration>> byGender = new LinkedHashMap<>();
+            byGender.put("FEMALE", new ArrayList<>());
+            byGender.put("MALE", new ArrayList<>());
+            for (Registration r : regs) {
+                Athlete ath = athleteMap.get(r.athleteId);
+                if (ath == null) continue;
+                String g = ath.gender != null ? ath.gender.toUpperCase() : null;
+                if ("FEMALE".equals(g) || "MALE".equals(g)) {
+                    byGender.get(g).add(r);
+                }
+            }
+            Map<String, String> genderLabel = Map.of("FEMALE", "Frauen", "MALE", "Männer");
+            for (Map.Entry<String, List<Registration>> entry : byGender.entrySet()) {
+                if (entry.getValue().isEmpty()) continue;
+                boards.add(new CategoryBoard(
+                        new CategoryDto(entry.getKey(), genderLabel.get(entry.getKey())),
+                        buildAndRank(entry.getValue(), athleteMap, scoresByReg, configs, comp, round)));
+            }
+        } else {
+            Map<UUID, List<Registration>> regsByCategory = regs.stream()
+                    .filter(r -> r.categoryId != null)
+                    .collect(Collectors.groupingBy(r -> r.categoryId));
+            List<Registration> noCatRegs = regs.stream().filter(r -> r.categoryId == null).toList();
+
+            for (CompetitionCategory cat : categories) {
+                List<Registration> catRegs = regsByCategory.getOrDefault(cat.id, List.of());
+                if (catRegs.isEmpty()) continue;
+                boards.add(new CategoryBoard(
+                        new CategoryDto(cat.id.toString(), cat.name),
+                        buildAndRank(catRegs, athleteMap, scoresByReg, configs, comp, round)));
+            }
+            if (!noCatRegs.isEmpty()) {
+                boards.add(new CategoryBoard(
+                        new CategoryDto("", "Ohne Kategorie"),
+                        buildAndRank(noCatRegs, athleteMap, scoresByReg, configs, comp, round)));
+            }
         }
 
         List<RoundDto> roundDtos = allRounds.stream()
