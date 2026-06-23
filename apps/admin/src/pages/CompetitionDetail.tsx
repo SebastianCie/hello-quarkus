@@ -523,6 +523,9 @@ function ScoreboardUrlSection({ slug, baseUrl }: { slug: string; baseUrl: string
         <GhostButton onClick={copy} style={{ whiteSpace: 'nowrap' }}>
           {copied ? '✓ Kopiert' : 'Link kopieren'}
         </GhostButton>
+        <GhostButton onClick={() => window.open(url, '_blank')} style={{ whiteSpace: 'nowrap' }}>
+          Öffnen ↗
+        </GhostButton>
       </div>
     </Card>
   )
@@ -865,6 +868,9 @@ function TokenSection({
             </code>
             <GhostButton onClick={copy} style={{ whiteSpace: 'nowrap' }}>
               {copied ? '✓ Kopiert' : 'Link kopieren'}
+            </GhostButton>
+            <GhostButton onClick={() => window.open(registerUrl!, '_blank')} style={{ whiteSpace: 'nowrap' }}>
+              Öffnen ↗
             </GhostButton>
             <GhostButton
               onClick={() => { if (confirm('Neuen Token generieren? Der alte Link wird ungültig.')) generateToken.mutate() }}
