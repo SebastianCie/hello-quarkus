@@ -8,7 +8,7 @@ const NAV: { to: string; label: string; end?: boolean }[] = [
   { to: '/dashboard/organisation', label: 'Organisation & Standorte' },
   { to: '/dashboard/wettkampfe', label: 'Wettkämpfe' },
   { to: '/dashboard/athleten', label: 'Athleten' },
-  { to: '/dashboard/liveanzeige', label: 'Liveanzeige' },
+  { to: '/dashboard/einstellungen', label: 'Einstellungen' },
   { to: '/dashboard/hilfe', label: 'Hilfe & FAQ' },
 ]
 

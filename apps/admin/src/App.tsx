@@ -13,7 +13,7 @@ import { Competitions } from '@/pages/Competitions'
 import { CompetitionDetail } from '@/pages/CompetitionDetail'
 import { Athletes } from '@/pages/Athletes'
 import { Faq } from '@/pages/Faq'
-import { Liveanzeige } from '@/pages/Liveanzeige'
+import { Einstellungen } from '@/pages/Einstellungen'
 
 const queryClient = new QueryClient()
 
@@ -49,7 +49,7 @@ export default function App() {
               <Route path="wettkampfe" element={<Competitions />} />
               <Route path="wettkampfe/:id" element={<CompetitionDetail />} />
               <Route path="athleten" element={<Athletes />} />
-              <Route path="liveanzeige" element={<Liveanzeige />} />
+              <Route path="einstellungen" element={<Einstellungen />} />
               <Route path="hilfe" element={<Faq />} />
             </Route>
             <Route path="*" element={<SmartRedirect />} />

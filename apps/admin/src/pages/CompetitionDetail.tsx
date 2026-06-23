@@ -263,6 +263,11 @@ function RoundsSection({ compId, categories }: { compId: string; categories: Com
   const [previewLoading, setPreviewLoading] = useState<string | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
+  const { data: appSettings } = useQuery({
+    queryKey: ['settings'],
+    queryFn: api.settings.getAll,
+  })
+
   const { data: rounds = [] } = useQuery({
     queryKey: ['rounds', compId],
     queryFn: () => api.rounds.list(compId),
@@ -496,9 +501,9 @@ function RoundsSection({ compId, categories }: { compId: string; categories: Com
   )
 }
 
-function ScoreboardUrlSection({ slug }: { slug: string }) {
+function ScoreboardUrlSection({ slug, baseUrl }: { slug: string; baseUrl: string }) {
   const [copied, setCopied] = useState(false)
-  const url = `${window.location.origin.replace(':3000', ':3003')}/${slug}`
+  const url = `${baseUrl || window.location.origin}/${slug}`
 
   function copy() {
     navigator.clipboard.writeText(url)
@@ -786,7 +791,7 @@ function HallMapSection({ compId, hasMap, onChanged }: {
 }
 
 function TokenSection({
-  compId, token, selfRegistration, registrationOpensAt, registrationClosesAt, onGenerated,
+  compId, token, selfRegistration, registrationOpensAt, registrationClosesAt, onGenerated, registerBaseUrl,
 }: {
   compId: string
   token: string | null
@@ -794,6 +799,7 @@ function TokenSection({
   registrationOpensAt: string | null
   registrationClosesAt: string | null
   onGenerated: () => void
+  registerBaseUrl: string
 }) {
   const [copied, setCopied] = useState(false)
 
@@ -802,7 +808,7 @@ function TokenSection({
     onSuccess: onGenerated,
   })
 
-  const registerUrl = token ? `${window.location.origin.replace(':3000', ':3001')}/${token}` : null
+  const registerUrl = token ? `${registerBaseUrl || window.location.origin}/${token}` : null
 
   function copy() {
     if (!registerUrl) return
@@ -1519,9 +1525,10 @@ export function CompetitionDetail() {
         registrationOpensAt={comp.registrationOpensAt ?? null}
         registrationClosesAt={comp.registrationClosesAt ?? null}
         onGenerated={() => qc.invalidateQueries({ queryKey: ['competition', id] })}
+        registerBaseUrl={appSettings?.['register_base_url'] || ''}
       />
 
-      <ScoreboardUrlSection slug={comp.slug} />
+      <ScoreboardUrlSection slug={comp.slug} baseUrl={appSettings?.['scoreboard_base_url'] || ''} />
 
       <ScoringSection compId={id!} />
 
