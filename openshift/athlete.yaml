@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: athlete
-          image: ghcr.io/sebastiancle/beta-battle-athlete:latest
+          image: quay.io/sebastianeichh/beta-battle-athlete:latest
           ports:
             - containerPort: 8080
           resources:

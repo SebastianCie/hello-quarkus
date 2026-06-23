@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: admin
-          image: ghcr.io/sebastiancle/beta-battle-admin:latest
+          image: quay.io/sebastianeichh/beta-battle-admin:latest
           ports:
             - containerPort: 8080
           resources:

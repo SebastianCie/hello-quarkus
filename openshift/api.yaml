@@ -39,7 +39,7 @@ spec:
     spec:
       containers:
         - name: api
-          image: ghcr.io/sebastiancle/beta-battle-api:latest
+          image: quay.io/sebastianeichh/beta-battle-api:latest
           ports:
             - containerPort: 8080
           env:
