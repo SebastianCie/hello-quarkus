@@ -18,9 +18,8 @@ data:
     https://register-sebastianeichh-dev.apps.rm2.thpm.p1.openshiftapps.com,
     https://scoreboard-sebastianeichh-dev.apps.rm2.thpm.p1.openshiftapps.com
   FRONTEND_URL: https://admin-sebastianeichh-dev.apps.rm2.thpm.p1.openshiftapps.com
-  SMTP_HOST: localhost
-  SMTP_PORT: "1025"
   SMTP_FROM: noreply@betabattle.app
+  QUARKUS_MAILER_MOCK: "true"
 ---
 apiVersion: apps/v1
 kind: Deployment
