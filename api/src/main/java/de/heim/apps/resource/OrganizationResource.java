@@ -22,8 +22,8 @@ public class OrganizationResource {
     @Inject
     SecurityIdentity identity;
 
-    @ConfigProperty(name = "beta-battle.dev-user-id", defaultValue = "")
-    String devUserId;
+    @ConfigProperty(name = "beta-battle.dev-user-id")
+    Optional<String> devUserId;
 
     public record SetupRequest(
         String name, String slug, String contactEmail, String logoUrl,
@@ -96,8 +96,8 @@ public class OrganizationResource {
         if (!identity.isAnonymous()) {
             return Optional.of(UUID.fromString(identity.getPrincipal().getName()));
         }
-        if (!devUserId.isBlank()) {
-            return Optional.of(UUID.fromString(devUserId));
+        if (devUserId.isPresent() && !devUserId.get().isBlank()) {
+            return Optional.of(UUID.fromString(devUserId.get()));
         }
         return Optional.empty();
     }
