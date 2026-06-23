@@ -4,6 +4,11 @@ import { useQuery, useMutation } from '@tanstack/react-query'
 
 const BASE = '/api/v1'
 
+async function fetchSettings(): Promise<Record<string, string>> {
+  const res = await fetch(`${BASE}/settings`)
+  return res.ok ? res.json() : {}
+}
+
 type Competition = {
   id: string; name: string; discipline: string; startDate: string | null; endDate: string | null
   registrationOpensAt: string | null; registrationClosesAt: string | null
@@ -77,6 +82,11 @@ function ProfileStep({ token, comp, categories, disciplineLabel }: {
   const [success, setSuccess] = useState(false)
   const [registeredName, setRegisteredName] = useState('')
 
+  const { data: settings } = useQuery({
+    queryKey: ['settings'],
+    queryFn: fetchSettings,
+  })
+
   const register = useMutation({
     mutationFn: async () => {
       if (!form.email.includes('@')) throw new Error('Bitte eine gültige E-Mail-Adresse eingeben.')
@@ -112,6 +122,9 @@ function ProfileStep({ token, comp, categories, disciplineLabel }: {
   })
 
   if (success) {
+    const athleteBase = settings?.['athlete_base_url'] || window.location.origin
+    const athleteUrl = athleteBase.replace(/\/$/, '')
+
     return (
       <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
         <div style={{ fontSize: 56, marginBottom: 20 }}>✅</div>
@@ -123,12 +136,25 @@ function ProfileStep({ token, comp, categories, disciplineLabel }: {
         <div style={{
           marginTop: 24, padding: '14px 18px', borderRadius: 12,
           background: 'rgba(108,240,194,0.08)', border: '1px solid rgba(108,240,194,0.25)',
-          maxWidth: 340, textAlign: 'center',
+          maxWidth: 340, width: '100%', textAlign: 'center',
         }}>
           <p style={{ color: '#6cf0c2', fontSize: 13, fontWeight: 700, margin: '0 0 4px' }}>Konto erstellt</p>
-          <p style={{ color: '#a6b0c3', fontSize: 13, margin: 0, lineHeight: 1.5 }}>
-            Du kannst dich jetzt in der Athleten-App mit deiner E-Mail und deinem Passwort anmelden.
+          <p style={{ color: '#a6b0c3', fontSize: 13, margin: '0 0 16px', lineHeight: 1.5 }}>
+            Melde dich in der Athleten-App mit deiner E-Mail und deinem Passwort an, um deine Ergebnisse einzutragen.
           </p>
+          <a
+            href={athleteUrl}
+            style={{
+              display: 'block', padding: '13px 24px', borderRadius: 10,
+              background: '#6cf0c2', color: '#020231',
+              fontWeight: 700, fontSize: 15, textDecoration: 'none',
+              transition: 'opacity 0.15s',
+            }}
+            onMouseEnter={e => (e.currentTarget.style.opacity = '0.85')}
+            onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
+          >
+            Zur Athleten-App →
+          </a>
         </div>
       </div>
     )

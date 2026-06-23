@@ -73,11 +73,13 @@ export function Einstellungen() {
   const [perPage, setPerPage] = useState<string | null>(null)
   const [scoreboardUrl, setScoreboardUrl] = useState<string | null>(null)
   const [registerUrl, setRegisterUrl] = useState<string | null>(null)
+  const [athleteUrl, setAthleteUrl] = useState<string | null>(null)
 
   const intervalVal = interval ?? (settings?.['scoreboard_interval_seconds'] ?? '5')
   const perPageVal = perPage ?? (settings?.['scoreboard_athletes_per_page'] ?? '0')
   const scoreboardUrlVal = scoreboardUrl ?? (settings?.['scoreboard_base_url'] ?? '')
   const registerUrlVal = registerUrl ?? (settings?.['register_base_url'] ?? '')
+  const athleteUrlVal = athleteUrl ?? (settings?.['athlete_base_url'] ?? '')
 
   const save = useMutation({
     mutationFn: async () => {
@@ -85,6 +87,7 @@ export function Einstellungen() {
       await api.settings.update('scoreboard_athletes_per_page', perPageVal)
       await api.settings.update('scoreboard_base_url', scoreboardUrlVal)
       await api.settings.update('register_base_url', registerUrlVal)
+      await api.settings.update('athlete_base_url', athleteUrlVal)
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['settings'] })
@@ -92,10 +95,11 @@ export function Einstellungen() {
       setPerPage(null)
       setScoreboardUrl(null)
       setRegisterUrl(null)
+      setAthleteUrl(null)
     },
   })
 
-  const isDirty = interval !== null || perPage !== null || scoreboardUrl !== null || registerUrl !== null
+  const isDirty = interval !== null || perPage !== null || scoreboardUrl !== null || registerUrl !== null || athleteUrl !== null
   const origin = window.location.origin
 
   return (
@@ -151,6 +155,13 @@ export function Einstellungen() {
             value={registerUrlVal}
             placeholder={origin}
             onChange={setRegisterUrl}
+          />
+          <UrlRow
+            label="Athleten-App-URL"
+            description="Basis-URL der Athleten-App. Wird nach der Selbstregistrierung als Weiterleitung angezeigt."
+            value={athleteUrlVal}
+            placeholder={origin}
+            onChange={setAthleteUrl}
           />
         </div>
       </Card>
