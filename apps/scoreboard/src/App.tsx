@@ -308,18 +308,16 @@ export function App() {
         <ScoreTable key={pageKey} page={currentPage} data={data} />
       </div>
 
-      {/* Progress bar */}
-      {pages.length > 1 && (
-        <div style={{ flexShrink: 0 }}>
-          <div style={{ padding: '6px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: 11, color: '#6b7890' }}>Live</span>
-            <span style={{ fontSize: 11, color: '#6b7890' }}>
-              {data.competition.status === 'ACTIVE' ? '● Aktiv' : data.competition.status}
-            </span>
-          </div>
-          <ProgressBar key={pageKey} intervalMs={intervalMs} pageKey={pageKey} />
+      {/* Footer */}
+      <div style={{ flexShrink: 0 }}>
+        <div style={{ padding: '6px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span style={{ fontSize: 11, color: '#6b7890' }}>Live</span>
+          <span style={{ fontSize: 11, color: data.competition.status === 'ACTIVE' ? ACCENT : '#6b7890' }}>
+            {data.competition.status === 'ACTIVE' ? '● Aktiv' : data.competition.status}
+          </span>
         </div>
-      )}
+        {pages.length > 1 && <ProgressBar key={pageKey} intervalMs={intervalMs} pageKey={pageKey} />}
+      </div>
     </div>
   )
 }
