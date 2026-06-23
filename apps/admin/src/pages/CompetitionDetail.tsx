@@ -104,7 +104,7 @@ const ROUND_STATUS_LABEL: Record<string, string> = {
   UPCOMING: 'Bevorstehend', ACTIVE: 'Aktiv', CLOSED: 'Abgeschlossen',
 }
 const ROUND_STATUS_COLOR: Record<string, string> = {
-  UPCOMING: '#a6b0c3', ACTIVE: '#ffa222', CLOSED: '#6b7890',
+  UPCOMING: '#a6b0c3', ACTIVE: '#6cf0c2', CLOSED: '#6b7890',
 }
 
 type RoundForm = { name: string; slug: string; sortOrder: string; advancementCount: string; startAt: string; endAt: string; status: string }
@@ -391,8 +391,8 @@ function RoundsSection({ compId, categories }: { compId: string; categories: Com
                         return (
                           <span key={cs.id} style={{
                             fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 999,
-                            background: closed ? 'rgba(107,120,144,0.2)' : 'rgba(255,162,34,0.12)',
-                            color: closed ? '#6b7890' : '#ffa222',
+                            background: closed ? 'rgba(107,120,144,0.2)' : 'rgba(108,240,194,0.12)',
+                            color: closed ? '#6b7890' : '#6cf0c2',
                             letterSpacing: '0.06em',
                           }}>
                             {catName}: {closed ? 'Abgeschlossen' : 'Aktiv'}
@@ -828,8 +828,8 @@ function TokenSection({
         <SectionLabel>Selbstregistrierung (QR-Code / Link)</SectionLabel>
         <span style={{
           fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 999,
-          background: selfRegistration ? 'rgba(255,162,34,0.12)' : 'rgba(255,255,255,0.07)',
-          color: selfRegistration ? '#ffa222' : '#6b7890',
+          background: selfRegistration ? 'rgba(108,240,194,0.12)' : 'rgba(255,255,255,0.07)',
+          color: selfRegistration ? '#6cf0c2' : '#6b7890',
           letterSpacing: '0.06em', textTransform: 'uppercase',
         }}>
           {selfRegistration ? 'Aktiv' : 'Inaktiv'}
@@ -1083,7 +1083,7 @@ export function CompetitionDetail() {
     { value: 'REJECTED', label: 'Abgelehnt' },
   ]
   const STATUS_COLOR: Record<string, string> = {
-    PENDING: '#a6b0c3', CONFIRMED: '#6cf0c2', REJECTED: '#ff5d6b',
+    PENDING: '#ffc400', CONFIRMED: '#6cf0c2', REJECTED: '#ff5d6b',
   }
 
   const [addForm, setAddForm] = useState({ athleteId: '', categoryId: '', startNumber: '' })

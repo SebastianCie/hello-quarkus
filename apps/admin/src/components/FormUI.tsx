@@ -217,9 +217,9 @@ export function Modal({ title, onClose, children }: {
 export function StatusBadge({ status }: { status: string }) {
   const styles: Record<string, React.CSSProperties> = {
     DRAFT:  { background: 'rgba(166,176,195,0.15)', color: '#a6b0c3' },
-    OPEN:   { background: 'rgba(108,240,194,0.15)', color: '#6cf0c2' },
-    ACTIVE: { background: 'rgba(255,162,34,0.15)',  color: '#ffa222' },
-    CLOSED: { background: 'rgba(255,93,107,0.12)',  color: '#ff5d6b' },
+    OPEN:   { background: 'rgba(255,196,0,0.15)',   color: '#ffc400' },
+    ACTIVE: { background: 'rgba(108,240,194,0.15)', color: '#6cf0c2' },
+    CLOSED: { background: 'rgba(107,120,144,0.2)',  color: '#6b7890' },
   }
   const labels: Record<string, string> = {
     DRAFT: 'Entwurf', OPEN: 'Offen', ACTIVE: 'Aktiv', CLOSED: 'Beendet',
