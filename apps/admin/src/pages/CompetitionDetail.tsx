@@ -1121,11 +1121,7 @@ export function CompetitionDetail() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['registrations', id] }),
   })
   const confirmAllRegs = useMutation({
-    mutationFn: () => Promise.all(
-      regs
-        .filter(r => r.status === 'PENDING')
-        .map(r => api.registrations.update(r.id, { status: 'CONFIRMED', categoryId: r.categoryId }))
-    ),
+    mutationFn: () => api.registrations.confirmAll(id!),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['registrations', id] }),
   })
 

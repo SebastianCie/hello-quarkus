@@ -63,6 +63,37 @@ public class RegistrationResource {
         return Response.status(201).entity(entity).build();
     }
 
+    @POST
+    @Path("/confirm-all")
+    @Transactional
+    public Response confirmAll(@QueryParam("compId") UUID compId) {
+        if (compId == null) return Response.status(400).entity(Map.of("message", "compId required")).build();
+
+        List<Registration> pending = Registration.list(
+                "compId = ?1 and status = 'PENDING'", compId);
+
+        CompetitionRound round1 = CompetitionRound.<CompetitionRound>list(
+                "compId = ?1 ORDER BY sortOrder ASC", compId)
+                .stream().findFirst().orElse(null);
+
+        for (Registration reg : pending) {
+            reg.status = "CONFIRMED";
+            if (round1 != null) {
+                boolean alreadyIn = RoundParticipant.count(
+                        "roundId = ?1 and registrationId = ?2", round1.id, reg.id) > 0;
+                if (!alreadyIn) {
+                    RoundParticipant rp = new RoundParticipant();
+                    rp.roundId = round1.id;
+                    rp.registrationId = reg.id;
+                    rp.persist();
+                }
+            }
+        }
+
+        if (!pending.isEmpty()) scoreboardEvents.emit(compId.toString());
+        return Response.ok(Map.of("confirmed", pending.size())).build();
+    }
+
     @PUT
     @Path("/{id}")
     @Transactional

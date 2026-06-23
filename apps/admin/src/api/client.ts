@@ -302,6 +302,8 @@ export const api = {
       request<Registration>('/registrations', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: Partial<Registration>) =>
       request<Registration>(`/registrations/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    confirmAll: (compId: string) =>
+      request<{ confirmed: number }>(`/registrations/confirm-all?compId=${compId}`, { method: 'POST' }),
     delete: (id: string) =>
       request<void>(`/registrations/${id}`, { method: 'DELETE' }),
   },
