@@ -33,30 +33,30 @@ spec:
     spec:
       containers:
         - name: postgresql
-          image: postgres:16-alpine
+          # bitnami/postgresql läuft als non-root (UID 1001) – kompatibel mit OpenShift SCCs
+          image: bitnami/postgresql:16
           ports:
             - containerPort: 5432
           env:
-            - name: POSTGRES_USER
+            # bitnami verwendet POSTGRESQL_* statt POSTGRES_*
+            - name: POSTGRESQL_USERNAME
               valueFrom:
                 secretKeyRef:
                   name: postgresql-secret
                   key: POSTGRES_USER
-            - name: POSTGRES_PASSWORD
+            - name: POSTGRESQL_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: postgresql-secret
                   key: POSTGRES_PASSWORD
-            - name: POSTGRES_DB
+            - name: POSTGRESQL_DATABASE
               valueFrom:
                 secretKeyRef:
                   name: postgresql-secret
                   key: POSTGRES_DB
-            - name: PGDATA
-              value: /var/lib/postgresql/data/pgdata
           volumeMounts:
             - name: data
-              mountPath: /var/lib/postgresql/data
+              mountPath: /bitnami/postgresql
           resources:
             requests:
               cpu: 100m
