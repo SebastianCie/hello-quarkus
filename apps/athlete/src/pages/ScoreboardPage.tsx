@@ -30,12 +30,20 @@ export function ScoreboardPage({ reg }: Props) {
   const [selectedCatId, setSelectedCatId] = useState<string | null>(null)
   useEffect(() => {
     if (data && selectedCatId === null) {
-      const myBoard = data.categories.find(c =>
-        myCategoryId ? c.category.id === myCategoryId : c.category.id === ''
-      )
+      // Try by categoryId first (manual categories), then fall back to finding
+      // the board that actually contains this athlete (gender-based categories
+      // store null categoryId on the registration)
+      let myBoard = myCategoryId
+        ? data.categories.find(c => c.category.id === myCategoryId)
+        : data.categories.find(c => c.category.id === '')
+      if (!myBoard) {
+        myBoard = data.categories.find(c =>
+          c.athletes.some(a => a.registration.id === myRegId)
+        )
+      }
       setSelectedCatId(myBoard?.category.id ?? data.categories[0]?.category.id ?? null)
     }
-  }, [data, selectedCatId, myCategoryId])
+  }, [data, selectedCatId, myCategoryId, myRegId])
 
   // SSE with reconnect
   const invalidate = useCallback(() => {
@@ -48,12 +56,18 @@ export function ScoreboardPage({ reg }: Props) {
     scrolledRef.current = false
   }, [selectedCatId])
 
+  const myActualCatId = data?.categories.find(c =>
+    myCategoryId
+      ? c.category.id === myCategoryId
+      : c.athletes.some(a => a.registration.id === myRegId)
+  )?.category.id ?? data?.categories[0]?.category.id
+
   useEffect(() => {
-    if (data && myRowRef.current && !scrolledRef.current && selectedCatId === (myCategoryId || data.categories[0]?.category.id)) {
+    if (data && myRowRef.current && !scrolledRef.current && selectedCatId === myActualCatId) {
       scrolledRef.current = true
       myRowRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' })
     }
-  }, [data, selectedCatId, myCategoryId])
+  }, [data, selectedCatId, myActualCatId])
 
   const activeBoard = data?.categories.find(c => c.category.id === selectedCatId)
     ?? data?.categories[0]
@@ -156,7 +170,7 @@ export function ScoreboardPage({ reg }: Props) {
           }}>
             {categories.map(board => {
               const isActive = board.category.id === selectedCatId
-              const isMycat = board.category.id === (myCategoryId || categories[0]?.category.id)
+              const isMycat = board.category.id === myActualCatId
               return (
                 <button
                   key={board.category.id}
