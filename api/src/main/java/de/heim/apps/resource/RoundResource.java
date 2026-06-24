@@ -243,26 +243,48 @@ public class RoundResource {
             }
         }
 
-        Map<UUID, List<Registration>> byCat = regs.stream()
-                .filter(r -> r.categoryId != null)
-                .collect(Collectors.groupingBy(r -> r.categoryId));
-        List<Registration> noCat = filterCategoryId == null
-                ? regs.stream().filter(r -> r.categoryId == null).toList()
-                : List.of();
-
         List<CategoryAdvancement> catResults = new ArrayList<>();
-        for (CompetitionCategory cat : categories) {
-            List<Registration> catRegs = byCat.getOrDefault(cat.id, List.of());
-            if (catRegs.isEmpty()) continue;
-            boolean closed = closedCategoryIds.contains(cat.id);
-            catResults.add(buildCategoryAdvancement(
-                    cat.id.toString(), cat.name, closed, round.advancementCount,
-                    catRegs, athleteMap, scoresByReg, configs, comp, round));
-        }
-        if (!noCat.isEmpty()) {
-            catResults.add(buildCategoryAdvancement(
-                    null, "Ohne Kategorie", false, round.advancementCount,
-                    noCat, athleteMap, scoresByReg, configs, comp, round));
+
+        if (comp.genderBasedCategories) {
+            // Group by athlete gender (same logic as ScoreboardResource)
+            Map<String, List<Registration>> byGender = new LinkedHashMap<>();
+            byGender.put("FEMALE", new ArrayList<>());
+            byGender.put("MALE", new ArrayList<>());
+            for (Registration r : regs) {
+                Athlete ath = athleteMap.get(r.athleteId);
+                if (ath == null) continue;
+                String g = ath.gender != null ? ath.gender.toUpperCase() : null;
+                if ("FEMALE".equals(g)) byGender.get("FEMALE").add(r);
+                else if ("MALE".equals(g)) byGender.get("MALE").add(r);
+            }
+            Map<String, String> genderLabel = Map.of("FEMALE", "Frauen", "MALE", "Männer");
+            for (Map.Entry<String, List<Registration>> entry : byGender.entrySet()) {
+                if (entry.getValue().isEmpty()) continue;
+                catResults.add(buildCategoryAdvancement(
+                        entry.getKey(), genderLabel.get(entry.getKey()), false, round.advancementCount,
+                        entry.getValue(), athleteMap, scoresByReg, configs, comp, round));
+            }
+        } else {
+            Map<UUID, List<Registration>> byCat = regs.stream()
+                    .filter(r -> r.categoryId != null)
+                    .collect(Collectors.groupingBy(r -> r.categoryId));
+            List<Registration> noCat = filterCategoryId == null
+                    ? regs.stream().filter(r -> r.categoryId == null).toList()
+                    : List.of();
+
+            for (CompetitionCategory cat : categories) {
+                List<Registration> catRegs = byCat.getOrDefault(cat.id, List.of());
+                if (catRegs.isEmpty()) continue;
+                boolean closed = closedCategoryIds.contains(cat.id);
+                catResults.add(buildCategoryAdvancement(
+                        cat.id.toString(), cat.name, closed, round.advancementCount,
+                        catRegs, athleteMap, scoresByReg, configs, comp, round));
+            }
+            if (!noCat.isEmpty()) {
+                catResults.add(buildCategoryAdvancement(
+                        null, "Ohne Kategorie", false, round.advancementCount,
+                        noCat, athleteMap, scoresByReg, configs, comp, round));
+            }
         }
 
         return Response.ok(new AdvancementPreview(missing.isEmpty(), missing, catResults)).build();
@@ -301,7 +323,12 @@ public class RoundResource {
         if ("CLOSED".equals(round.status))
             return Response.status(409).entity(Map.of("message", "Runde ist bereits abgeschlossen.")).build();
 
-        UUID categoryId = req != null && req.categoryId() != null ? UUID.fromString(req.categoryId()) : null;
+        // Gender-based categories use "FEMALE"/"MALE" as ids — these are not real UUIDs.
+        // Treat them as close-all (null) since per-gender status tracking is not needed.
+        UUID categoryId = null;
+        if (req != null && req.categoryId() != null) {
+            try { categoryId = UUID.fromString(req.categoryId()); } catch (IllegalArgumentException ignored) {}
+        }
 
         if (categoryId != null) {
             // ── Close only this category ──────────────────────────────────────────

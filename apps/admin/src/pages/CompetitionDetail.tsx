@@ -128,10 +128,13 @@ function AdvancementModal({ round, preview, categories, onClose, onConfirm, isPe
   onConfirm: (categoryId: string | null, ids: string[]) => void
   isPending: boolean
 }) {
-  // Category picker: null = alle, string = specific categoryId
+  // Gender-based categories use "FEMALE"/"MALE" as ids — no per-gender closing,
+  // always close the whole round at once.
+  const isGenderBased = preview.categories.some(c => c.categoryId === 'FEMALE' || c.categoryId === 'MALE')
+
   const openCategories = preview.categories.filter(c => !c.alreadyClosed)
   const [selectedCatId, setSelectedCatId] = useState<string | null>(
-    openCategories.length === 1 ? (openCategories[0].categoryId ?? null) : null
+    isGenderBased ? null : openCategories.length === 1 ? (openCategories[0].categoryId ?? null) : null
   )
 
   const visibleCats = selectedCatId !== null
@@ -183,14 +186,14 @@ function AdvancementModal({ round, preview, categories, onClose, onConfirm, isPe
     </div>
   )
 
-  const hasMultipleOpenCats = openCategories.length > 1
+  const hasMultipleOpenCats = !isGenderBased && openCategories.length > 1
   const confirmLabel = selectedCatId !== null
-    ? `${categories.find(c => c.id === selectedCatId)?.name ?? 'Kategorie'} abschließen`
+    ? `${categories.find(c => c.id === selectedCatId)?.name ?? preview.categories.find(c => c.categoryId === selectedCatId)?.categoryName ?? 'Kategorie'} abschließen`
     : 'Alle Kategorien abschließen'
 
   return (
     <Modal title={`Runde abschließen: ${round.name}`} onClose={onClose}>
-      {/* Category picker */}
+      {/* Category picker (not shown for gender-based competitions) */}
       {hasMultipleOpenCats && (
         <div style={{ marginBottom: 16 }}>
           <div style={{ fontSize: 11, color: '#6b7890', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>
