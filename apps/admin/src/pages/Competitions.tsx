@@ -247,7 +247,7 @@ export function Competitions() {
                 type="checkbox"
                 checked={form.selfRegistration}
                 onChange={e => set('selfRegistration', e.target.checked)}
-                style={{ width: 16, height: 16, accentColor: '#ffa222' }}
+                style={{ width: 16, height: 16, accentColor: '#6cf0c2' }}
               />
               <span style={{ fontSize: 13, color: '#e8ecf3' }}>Selbstregistrierung für Athleten</span>
             </label>

@@ -112,7 +112,7 @@ function ScoreTable({ page, data }: { page: Page; data: ScoreboardData }) {
           <th style={{ ...thStyle, textAlign: 'center' }}>Tops</th>
           {showZone && <th style={{ ...thStyle, textAlign: 'center' }}>Zonen</th>}
           {showPoints && <th style={{ ...thStyle, textAlign: 'right' }}>Punkte</th>}
-          {data.totalRoutes > 0 && <th style={{ ...thStyle, textAlign: 'center' }}>Bewertet</th>}
+          {(data.totalRoutes ?? 0) > 0 && <th style={{ ...thStyle, textAlign: 'center' }}>Bewertet</th>}
         </tr>
       </thead>
       <tbody>
@@ -151,12 +151,13 @@ function ScoreTable({ page, data }: { page: Page; data: ScoreboardData }) {
                   {entry.totalPoints > 0 ? formatPoints(entry.totalPoints) : '—'}
                 </td>
               )}
-              {data.totalRoutes > 0 && (
+              {(data.totalRoutes ?? 0) > 0 && (
                 <td style={{ ...numStyle, fontSize: 15 }}>
-                  <span style={{ color: scored === data.totalRoutes ? ACCENT : '#a6b0c3', fontWeight: scored > 0 ? 600 : 400 }}>
+                  <span style={{ color: '#a6b0c3' }}>{data.totalRoutes}</span>
+                  <span style={{ color: '#4a5568' }}> / </span>
+                  <span style={{ color: scored > 0 ? ACCENT : '#4a5568', fontWeight: scored > 0 ? 600 : 400 }}>
                     {scored}
                   </span>
-                  <span style={{ color: '#4a5568' }}> / {data.totalRoutes}</span>
                 </td>
               )}
             </tr>
