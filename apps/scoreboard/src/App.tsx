@@ -113,6 +113,7 @@ function ScoreTable({ page, data }: { page: Page; data: ScoreboardData }) {
           {showZone && <th style={{ ...thStyle, textAlign: 'center' }}>Zonen</th>}
           {showPoints && <th style={{ ...thStyle, textAlign: 'right' }}>Punkte</th>}
           {(data.totalRoutes ?? 0) > 0 && <th style={{ ...thStyle, textAlign: 'center' }}>Bewertet</th>}
+          {(data.totalRoutes ?? 0) > 0 && <th style={{ ...thStyle, textAlign: 'center' }}>Status</th>}
         </tr>
       </thead>
       <tbody>
@@ -158,6 +159,31 @@ function ScoreTable({ page, data }: { page: Page; data: ScoreboardData }) {
                   <span style={{ color: scored > 0 ? ACCENT : '#4a5568', fontWeight: scored > 0 ? 600 : 400 }}>
                     {scored}
                   </span>
+                </td>
+              )}
+              {(data.totalRoutes ?? 0) > 0 && (
+                <td style={{ ...tdStyle, textAlign: 'center' }}>
+                  {scored === 0 && (
+                    <span style={{
+                      display: 'inline-block', padding: '3px 10px', borderRadius: 999,
+                      background: 'rgba(255,196,0,0.15)', color: '#ffc400',
+                      fontSize: 12, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase',
+                    }}>Ausstehend</span>
+                  )}
+                  {scored > 0 && scored < (data.totalRoutes ?? 0) && (
+                    <span style={{
+                      display: 'inline-block', padding: '3px 10px', borderRadius: 999,
+                      background: 'rgba(108,240,194,0.15)', color: '#6cf0c2',
+                      fontSize: 12, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase',
+                    }}>Aktiv</span>
+                  )}
+                  {scored > 0 && scored >= (data.totalRoutes ?? 0) && (
+                    <span style={{
+                      display: 'inline-block', padding: '3px 10px', borderRadius: 999,
+                      background: 'rgba(255,93,107,0.15)', color: '#ff5d6b',
+                      fontSize: 12, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase',
+                    }}>Fertig</span>
+                  )}
                 </td>
               )}
             </tr>
