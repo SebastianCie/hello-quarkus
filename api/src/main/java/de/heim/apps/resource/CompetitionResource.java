@@ -3,7 +3,9 @@ package de.heim.apps.resource;
 import de.heim.apps.entity.Athlete;
 import de.heim.apps.entity.Competition;
 import de.heim.apps.entity.CompetitionCategory;
+import de.heim.apps.entity.CompetitionRound;
 import de.heim.apps.entity.Registration;
+import de.heim.apps.entity.RoundParticipant;
 import de.heim.apps.entity.User;
 import de.heim.apps.service.PasswordService;
 import io.quarkus.security.identity.SecurityIdentity;
@@ -187,7 +189,23 @@ public class CompetitionResource {
         reg.compId = comp.id;
         reg.athleteId = athlete.id;
         reg.categoryId = comp.genderBasedCategories ? null : req.categoryId();
-        reg.persist();
+
+        if (comp.autoConfirm) {
+            reg.status = "CONFIRMED";
+            reg.persist();
+            // Add to first round automatically
+            CompetitionRound round1 = CompetitionRound.<CompetitionRound>list(
+                    "compId = ?1 ORDER BY sortOrder ASC", comp.id)
+                    .stream().findFirst().orElse(null);
+            if (round1 != null) {
+                RoundParticipant rp = new RoundParticipant();
+                rp.roundId = round1.id;
+                rp.registrationId = reg.id;
+                rp.persist();
+            }
+        } else {
+            reg.persist();
+        }
 
         return Response.status(201).entity(Map.of("registration", reg, "athlete", athlete)).build();
     }
@@ -230,6 +248,7 @@ public class CompetitionResource {
         entity.registrationOpensAt = data.registrationOpensAt;
         entity.registrationClosesAt = data.registrationClosesAt;
         entity.genderBasedCategories = data.genderBasedCategories;
+        entity.autoConfirm = data.autoConfirm;
         return Response.ok(entity).build();
     }
 

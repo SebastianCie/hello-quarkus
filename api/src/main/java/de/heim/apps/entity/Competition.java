@@ -71,6 +71,9 @@ public class Competition extends PanacheEntityBase {
     @Column(name = "gender_based_categories")
     public boolean genderBasedCategories = false;
 
+    @Column(name = "auto_confirm")
+    public boolean autoConfirm = false;
+
     @Column(name = "created_at")
     public OffsetDateTime createdAt = OffsetDateTime.now();
 }

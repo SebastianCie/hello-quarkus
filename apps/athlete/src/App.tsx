@@ -99,6 +99,28 @@ function LoginPage({ onLogin }: { onLogin: () => void }) {
   )
 }
 
+// ── Pending / Rejected Registration ──────────────────────────────────────────
+
+function RegistrationStatusPage({ reg }: { reg: ActiveRegistration }) {
+  const isPending = reg.registration.status === 'PENDING'
+  return (
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24, textAlign: 'center' }}>
+      <div style={{ fontSize: 48, marginBottom: 16 }}>{isPending ? '⏳' : '🚫'}</div>
+      <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', color: ACCENT, marginBottom: 8 }}>
+        {reg.competition.name}
+      </div>
+      <h1 style={{ fontSize: 20, fontWeight: 700, marginBottom: 12 }}>
+        {isPending ? 'Anmeldung ausstehend' : 'Anmeldung abgelehnt'}
+      </h1>
+      <p style={{ color: '#a6b0c3', fontSize: 14, maxWidth: 300, lineHeight: 1.7, margin: 0 }}>
+        {isPending
+          ? 'Warte bis der Veranstalter dich für den Wettkampf bestätigt hat.'
+          : 'Deine Anmeldung wurde vom Veranstalter abgelehnt. Bei Fragen wende dich direkt an den Veranstalter.'}
+      </p>
+    </div>
+  )
+}
+
 // ── No Active Competition ─────────────────────────────────────────────────────
 
 function NoCompetitionPage({ firstName }: { firstName: string }) {
@@ -397,6 +419,16 @@ function AuthenticatedApp({ onLogout }: { onLogout: () => void }) {
             onSelect={setSelectedReg}
           />
         </div>
+      </>
+    )
+  }
+
+  const status = active.registration.status
+  if (status === 'PENDING' || status === 'REJECTED') {
+    return (
+      <>
+        <TopBar name={fullName} onLogout={handleLogout} />
+        <div style={{ paddingTop: 48 }}><RegistrationStatusPage reg={active} /></div>
       </>
     )
   }

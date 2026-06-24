@@ -31,14 +31,14 @@ const STATUSES = [
 type CompForm = {
   name: string; slug: string; discipline: string; format: string; status: string
   startDate: string; endDate: string; venue: string; locationId: string
-  selfRegistration: boolean; genderBasedCategories: boolean
+  selfRegistration: boolean; genderBasedCategories: boolean; autoConfirm: boolean
   registrationOpensAt: string; registrationClosesAt: string
 }
 
 const emptyForm = (): CompForm => ({
   name: '', slug: '', discipline: 'BOULDERN', format: 'FUN', status: 'DRAFT',
   startDate: '', endDate: '', venue: '', locationId: '', selfRegistration: false,
-  genderBasedCategories: false, registrationOpensAt: '', registrationClosesAt: '',
+  genderBasedCategories: false, autoConfirm: false, registrationOpensAt: '', registrationClosesAt: '',
 })
 
 export function Competitions() {
@@ -71,6 +71,7 @@ export function Competitions() {
       venue: comp.venue ?? '', locationId: comp.locationId ?? '',
       selfRegistration: comp.selfRegistration,
       genderBasedCategories: comp.genderBasedCategories,
+      autoConfirm: comp.autoConfirm,
       registrationOpensAt: comp.registrationOpensAt?.slice(0, 16) ?? '',
       registrationClosesAt: comp.registrationClosesAt?.slice(0, 16) ?? '',
     })
@@ -101,6 +102,7 @@ export function Competitions() {
         locationId: form.locationId || null,
         selfRegistration: form.selfRegistration,
         genderBasedCategories: form.genderBasedCategories,
+        autoConfirm: form.autoConfirm,
         registrationOpensAt: form.selfRegistration && form.registrationOpensAt ? new Date(form.registrationOpensAt).toISOString() : null,
         registrationClosesAt: form.selfRegistration && form.registrationClosesAt ? new Date(form.registrationClosesAt).toISOString() : null,
       }
@@ -267,6 +269,24 @@ export function Competitions() {
                 borderRadius: 8, padding: '8px 12px', fontSize: 13, color: '#ffc400',
               }}>
                 Vorhandene manuelle Kategorien werden ignoriert, bleiben aber gespeichert. Athleten werden automatisch nach Geschlecht gruppiert.
+              </div>
+            )}
+
+            <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={form.autoConfirm}
+                onChange={e => set('autoConfirm', e.target.checked)}
+                style={{ width: 16, height: 16, accentColor: '#6cf0c2' }}
+              />
+              <span style={{ fontSize: 13, color: '#e8ecf3' }}>Automatische Bestätigung von Athleten</span>
+            </label>
+            {form.autoConfirm && (
+              <div style={{
+                background: 'rgba(108,240,194,0.06)', border: '1px solid rgba(108,240,194,0.2)',
+                borderRadius: 8, padding: '8px 12px', fontSize: 13, color: '#6cf0c2',
+              }}>
+                Jeder neu registrierte Athlet wird sofort bestätigt und in die erste Runde eingetragen.
               </div>
             )}
 
