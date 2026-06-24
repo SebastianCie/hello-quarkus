@@ -84,8 +84,21 @@ function Counter({ value, onChange }: { value: number; onChange: (v: number) => 
   )
 }
 
+function CrossCircleIcon({ size = 16, color = 'currentColor' }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+      style={{ display: 'block', flexShrink: 0 }}
+    >
+      <circle cx="12" cy="12" r="10" />
+      <line x1="15" y1="9" x2="9" y2="15" />
+      <line x1="9" y1="9" x2="15" y2="15" />
+    </svg>
+  )
+}
+
 function Toggle({ active, label, color, onClick }: {
-  active: boolean; label: string; color: string; onClick: () => void
+  active: boolean; label: React.ReactNode; color: string; onClick: () => void
 }) {
   return (
     <button
@@ -97,9 +110,10 @@ function Toggle({ active, label, color, onClick }: {
         color: active ? color : '#a6b0c3',
         fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
         letterSpacing: '0.04em', transition: 'all 0.15s', flexShrink: 0,
+        display: 'flex', alignItems: 'center', gap: 5,
       }}
     >
-      {active ? '✓ ' : ''}{label}
+      {active && <span>✓</span>}{label}
     </button>
   )
 }
@@ -220,7 +234,7 @@ function RouteCard({ route, score, registrationId, athleteId, onSave }: {
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <Toggle active={state === 'zone'} label="ZONE" color="#ffc400" onClick={handleZoned} />
           <Toggle active={state === 'top'} label="TOP" color={ACCENT} onClick={handleTopped} />
-          <Toggle active={state === 'keineWertung'} label="✕" color="#ff5d6b" onClick={handleKeineWertung} />
+          <Toggle active={state === 'keineWertung'} label={<CrossCircleIcon size={15} color={state === 'keineWertung' ? '#ff5d6b' : '#a6b0c3'} />} color="#ff5d6b" onClick={handleKeineWertung} />
         </div>
 
         {/* Zeile 2 rechts: Versuchszähler (ausgeblendet bei Keine Wertung) */}
@@ -291,34 +305,40 @@ export function BoulderListPage({ reg }: Props) {
     <div style={{ minHeight: '100vh', paddingBottom: 40 }}>
       <Header reg={reg} />
 
-      <div style={{ padding: '10px 16px', borderBottom: '1px solid rgba(255,255,255,0.07)', display: 'flex', alignItems: 'center', gap: 16 }}>
-        <span style={{ fontSize: 13 }}>
-          <span style={{ color: ACCENT, fontWeight: 700 }}>{topped}</span>
-          <span style={{ color: '#a6b0c3' }}> / {routes.length} TOP</span>
-        </span>
-        <span style={{ fontSize: 13 }}>
-          <span style={{ color: '#ffc400', fontWeight: 700 }}>{zoned}</span>
-          <span style={{ color: '#a6b0c3' }}> ZONE</span>
-        </span>
-        {keineWertungCount > 0 && (
+      <div style={{ padding: '10px 16px', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           <span style={{ fontSize: 13 }}>
-            <span style={{ color: '#ff5d6b', fontWeight: 700 }}>{keineWertungCount}</span>
-            <span style={{ color: '#a6b0c3' }}> ✕</span>
+            <span style={{ color: ACCENT, fontWeight: 700 }}>{topped}</span>
+            <span style={{ color: '#a6b0c3' }}> / {routes.length} TOP</span>
           </span>
-        )}
-        {reg.competition.hallMapAvailable && (
-          <button
-            onClick={() => setMapOpen(true)}
-            style={{
-              marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6,
-              background: 'rgba(108,240,194,0.1)', border: '1px solid rgba(108,240,194,0.3)',
-              borderRadius: 8, padding: '5px 12px', color: ACCENT,
-              fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
-            }}
-          >
-            🗺 Hallenmap
-          </button>
-        )}
+          <span style={{ fontSize: 13 }}>
+            <span style={{ color: '#ffc400', fontWeight: 700 }}>{zoned}</span>
+            <span style={{ color: '#a6b0c3' }}> ZONE</span>
+          </span>
+          {keineWertungCount > 0 && (
+            <span style={{ fontSize: 13 }}>
+              <span style={{ color: '#ff5d6b', fontWeight: 700 }}>{keineWertungCount}</span>
+              <span style={{ color: '#a6b0c3' }}> Keine Wertung</span>
+            </span>
+          )}
+          {reg.competition.hallMapAvailable && (
+            <button
+              onClick={() => setMapOpen(true)}
+              style={{
+                marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6,
+                background: 'rgba(108,240,194,0.1)', border: '1px solid rgba(108,240,194,0.3)',
+                borderRadius: 8, padding: '5px 12px', color: ACCENT,
+                fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+              }}
+            >
+              🗺 Hallenmap
+            </button>
+          )}
+        </div>
+        <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#4a5568' }}>
+          <CrossCircleIcon size={12} color="#4a5568" />
+          <span>= Keine Wertung (Boulder versucht, kein Zone / Top)</span>
+        </div>
       </div>
 
       {mapOpen && <MapModal compId={reg.competition.id} onClose={() => setMapOpen(false)} />}
@@ -336,9 +356,6 @@ export function BoulderListPage({ reg }: Props) {
         ))}
       </div>
 
-      <div style={{ padding: '8px 16px 32px', fontSize: 11, color: '#4a5568', textAlign: 'center' }}>
-        ✕ = Keine Wertung (Boulder versucht, kein Zone / Top)
-      </div>
     </div>
   )
 }
