@@ -104,6 +104,12 @@ function Toggle({ active, label, color, onClick }: {
   )
 }
 
+// "Keine Wertung" = attempts=1, topped=false, zoned=false
+// Distinct from attempts=0 (not yet tried)
+function isKeineWertung(score: Score | undefined) {
+  return !!score && score.attempts > 0 && !score.topped && !score.zoned
+}
+
 function RouteCard({ route, score, registrationId, athleteId, onSave }: {
   route: { id: string; routeNumber: string; name: string | null; grade: string | null }
   score: Score | undefined
@@ -115,6 +121,8 @@ function RouteCard({ route, score, registrationId, athleteId, onSave }: {
   const [topped, setTopped] = useState(score?.topped ?? false)
   const [zoned, setZoned] = useState(score?.zoned ?? false)
   const [saving, setSaving] = useState(false)
+
+  const keineWertung = attempts > 0 && !topped && !zoned
 
   const save = useCallback(async (newAttempts: number, newTopped: boolean, newZoned: boolean) => {
     setSaving(true)
@@ -132,16 +140,37 @@ function RouteCard({ route, score, registrationId, athleteId, onSave }: {
 
   const handleTopped = () => {
     const next = !topped
+    const newZoned = next ? true : zoned
+    const newAttempts = next && attempts === 0 ? 1 : attempts
     setTopped(next)
-    if (next && !zoned) setZoned(true)
-    save(attempts, next, next ? true : zoned)
+    if (next) setZoned(true)
+    setAttempts(newAttempts)
+    save(newAttempts, next, newZoned)
   }
 
   const handleZoned = () => {
     if (topped) return
     const next = !zoned
+    const newAttempts = next && attempts === 0 ? 1 : attempts
     setZoned(next)
-    save(attempts, topped, next)
+    setAttempts(newAttempts)
+    save(newAttempts, topped, next)
+  }
+
+  const handleKeineWertung = () => {
+    if (keineWertung) {
+      // Toggle off — reset completely
+      setAttempts(0)
+      setTopped(false)
+      setZoned(false)
+      save(0, false, false)
+    } else {
+      // Activate — clear zone/top, store 1 attempt so scoreboard counts it
+      setAttempts(1)
+      setTopped(false)
+      setZoned(false)
+      save(1, false, false)
+    }
   }
 
   const handleAttempts = (v: number) => {
@@ -151,10 +180,26 @@ function RouteCard({ route, score, registrationId, athleteId, onSave }: {
 
   const name = route.name ?? `Boulder ${route.routeNumber}`
 
+  const cardBg = topped
+    ? 'rgba(108,240,194,0.06)'
+    : zoned
+    ? 'rgba(255,196,0,0.06)'
+    : keineWertung
+    ? 'rgba(255,93,107,0.05)'
+    : 'rgba(255,255,255,0.04)'
+
+  const cardBorder = topped
+    ? 'rgba(108,240,194,0.3)'
+    : zoned
+    ? 'rgba(255,196,0,0.25)'
+    : keineWertung
+    ? 'rgba(255,93,107,0.2)'
+    : 'rgba(255,255,255,0.1)'
+
   return (
     <div style={{
-      background: topped ? 'rgba(108,240,194,0.06)' : zoned ? 'rgba(255,196,0,0.06)' : 'rgba(255,255,255,0.04)',
-      border: `1px solid ${topped ? 'rgba(108,240,194,0.3)' : zoned ? 'rgba(255,196,0,0.25)' : 'rgba(255,255,255,0.1)'}`,
+      background: cardBg,
+      border: `1px solid ${cardBorder}`,
       borderRadius: 12, padding: '10px 12px',
       opacity: saving ? 0.7 : 1, transition: 'all 0.15s',
     }}>
@@ -175,17 +220,24 @@ function RouteCard({ route, score, registrationId, athleteId, onSave }: {
           )}
         </div>
 
-        {/* Zeile 1 rechts: Versuche-Label zentriert über Counter */}
-        <span style={{ fontSize: 11, color: '#a6b0c3', textAlign: 'center' }}>Versuche</span>
+        {/* Zeile 1 rechts: Versuche-Label oder leer wenn Keine Wertung */}
+        {!keineWertung
+          ? <span style={{ fontSize: 11, color: '#a6b0c3', textAlign: 'center' }}>Versuche</span>
+          : <span />
+        }
 
-        {/* Zeile 2 links: ZONE · TOP */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        {/* Zeile 2 links: ZONE · TOP · KEINE WERTUNG */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
           <Toggle active={zoned} label="ZONE" color="#ffc400" onClick={handleZoned} />
           <Toggle active={topped} label="TOP" color={ACCENT} onClick={handleTopped} />
+          <Toggle active={keineWertung} label="Keine Wertung" color="#ff5d6b" onClick={handleKeineWertung} />
         </div>
 
-        {/* Zeile 2 rechts: − 0 + */}
-        <Counter value={attempts} onChange={handleAttempts} />
+        {/* Zeile 2 rechts: Versuchszähler (ausgeblendet bei Keine Wertung) */}
+        {!keineWertung
+          ? <Counter value={attempts} onChange={handleAttempts} />
+          : <span />
+        }
       </div>
     </div>
   )
@@ -243,6 +295,7 @@ export function BoulderListPage({ reg }: Props) {
 
   const topped = routes.filter(r => scoreMap[r.id]?.topped).length
   const zoned = routes.filter(r => scoreMap[r.id]?.zoned && !scoreMap[r.id]?.topped).length
+  const keineWertungCount = routes.filter(r => isKeineWertung(scoreMap[r.id])).length
 
   return (
     <div style={{ minHeight: '100vh', paddingBottom: 40 }}>
@@ -257,6 +310,12 @@ export function BoulderListPage({ reg }: Props) {
           <span style={{ color: '#ffc400', fontWeight: 700 }}>{zoned}</span>
           <span style={{ color: '#a6b0c3' }}> ZONE</span>
         </span>
+        {keineWertungCount > 0 && (
+          <span style={{ fontSize: 13 }}>
+            <span style={{ color: '#ff5d6b', fontWeight: 700 }}>{keineWertungCount}</span>
+            <span style={{ color: '#a6b0c3' }}> Keine Wertung</span>
+          </span>
+        )}
         {reg.competition.hallMapAvailable && (
           <button
             onClick={() => setMapOpen(true)}
