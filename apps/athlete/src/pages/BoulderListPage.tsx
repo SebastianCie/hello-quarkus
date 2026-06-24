@@ -110,6 +110,8 @@ function isKeineWertung(score: Score | undefined) {
   return !!score && score.attempts > 0 && !score.topped && !score.zoned
 }
 
+type BoulderState = 'none' | 'zone' | 'top' | 'keineWertung'
+
 function RouteCard({ route, score, registrationId, athleteId, onSave }: {
   route: { id: string; routeNumber: string; name: string | null; grade: string | null }
   score: Score | undefined
@@ -117,12 +119,12 @@ function RouteCard({ route, score, registrationId, athleteId, onSave }: {
   athleteId: string
   onSave: (s: Score) => void
 }) {
-  const [attempts, setAttempts] = useState(score?.attempts ?? 0)
-  const [topped, setTopped] = useState(score?.topped ?? false)
-  const [zoned, setZoned] = useState(score?.zoned ?? false)
-  const [saving, setSaving] = useState(false)
+  const initState = (): BoulderState =>
+    score?.topped ? 'top' : score?.zoned ? 'zone' : (score?.attempts ?? 0) > 0 ? 'keineWertung' : 'none'
 
-  const keineWertung = attempts > 0 && !topped && !zoned
+  const [state, setState] = useState<BoulderState>(initState)
+  const [attempts, setAttempts] = useState(score?.attempts ?? 0)
+  const [saving, setSaving] = useState(false)
 
   const save = useCallback(async (newAttempts: number, newTopped: boolean, newZoned: boolean) => {
     setSaving(true)
@@ -138,63 +140,51 @@ function RouteCard({ route, score, registrationId, athleteId, onSave }: {
     }
   }, [registrationId, route.id, athleteId, onSave])
 
-  const handleTopped = () => {
-    const next = !topped
-    const newZoned = next ? true : zoned
-    const newAttempts = next && attempts === 0 ? 1 : attempts
-    setTopped(next)
-    if (next) setZoned(true)
-    setAttempts(newAttempts)
-    save(newAttempts, next, newZoned)
-  }
-
-  const handleZoned = () => {
-    if (topped) return
-    const next = !zoned
-    const newAttempts = next && attempts === 0 ? 1 : attempts
-    setZoned(next)
-    setAttempts(newAttempts)
-    save(newAttempts, topped, next)
-  }
-
-  const handleKeineWertung = () => {
-    if (keineWertung) {
-      // Toggle off — reset completely
-      setAttempts(0)
-      setTopped(false)
-      setZoned(false)
-      save(0, false, false)
-    } else {
-      // Activate — clear zone/top, store 1 attempt so scoreboard counts it
-      setAttempts(1)
-      setTopped(false)
-      setZoned(false)
-      save(1, false, false)
+  const applyState = (next: BoulderState, currentAttempts: number) => {
+    setState(next)
+    switch (next) {
+      case 'top': {
+        const a = Math.max(1, currentAttempts)
+        setAttempts(a)
+        save(a, true, true)
+        break
+      }
+      case 'zone': {
+        const a = Math.max(1, currentAttempts)
+        setAttempts(a)
+        save(a, false, true)
+        break
+      }
+      case 'keineWertung':
+        setAttempts(1)
+        save(1, false, false)
+        break
+      case 'none':
+        setAttempts(0)
+        save(0, false, false)
+        break
     }
   }
 
+  const handleTopped = () => applyState(state === 'top' ? 'none' : 'top', attempts)
+  const handleZoned = () => applyState(state === 'zone' ? 'none' : 'zone', attempts)
+  const handleKeineWertung = () => applyState(state === 'keineWertung' ? 'none' : 'keineWertung', attempts)
   const handleAttempts = (v: number) => {
     setAttempts(v)
-    save(v, topped, zoned)
+    save(v, state === 'top', state === 'zone' || state === 'top')
   }
 
   const name = route.name ?? `Boulder ${route.routeNumber}`
 
-  const cardBg = topped
-    ? 'rgba(108,240,194,0.06)'
-    : zoned
-    ? 'rgba(255,196,0,0.06)'
-    : keineWertung
-    ? 'rgba(255,93,107,0.05)'
-    : 'rgba(255,255,255,0.04)'
+  const cardBg = state === 'top'
+    ? 'rgba(108,240,194,0.06)' : state === 'zone'
+    ? 'rgba(255,196,0,0.06)' : state === 'keineWertung'
+    ? 'rgba(255,93,107,0.05)' : 'rgba(255,255,255,0.04)'
 
-  const cardBorder = topped
-    ? 'rgba(108,240,194,0.3)'
-    : zoned
-    ? 'rgba(255,196,0,0.25)'
-    : keineWertung
-    ? 'rgba(255,93,107,0.2)'
-    : 'rgba(255,255,255,0.1)'
+  const cardBorder = state === 'top'
+    ? 'rgba(108,240,194,0.3)' : state === 'zone'
+    ? 'rgba(255,196,0,0.25)' : state === 'keineWertung'
+    ? 'rgba(255,93,107,0.2)' : 'rgba(255,255,255,0.1)'
 
   return (
     <div style={{
@@ -220,21 +210,21 @@ function RouteCard({ route, score, registrationId, athleteId, onSave }: {
           )}
         </div>
 
-        {/* Zeile 1 rechts: Versuche-Label oder leer wenn Keine Wertung */}
-        {!keineWertung
+        {/* Zeile 1 rechts: Versuche-Label (ausgeblendet bei Keine Wertung) */}
+        {state !== 'keineWertung'
           ? <span style={{ fontSize: 11, color: '#a6b0c3', textAlign: 'center' }}>Versuche</span>
           : <span />
         }
 
-        {/* Zeile 2 links: ZONE · TOP · KEINE WERTUNG */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-          <Toggle active={zoned} label="ZONE" color="#ffc400" onClick={handleZoned} />
-          <Toggle active={topped} label="TOP" color={ACCENT} onClick={handleTopped} />
-          <Toggle active={keineWertung} label="Keine Wertung" color="#ff5d6b" onClick={handleKeineWertung} />
+        {/* Zeile 2 links: ZONE · TOP · ✕ */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <Toggle active={state === 'zone'} label="ZONE" color="#ffc400" onClick={handleZoned} />
+          <Toggle active={state === 'top'} label="TOP" color={ACCENT} onClick={handleTopped} />
+          <Toggle active={state === 'keineWertung'} label="✕" color="#ff5d6b" onClick={handleKeineWertung} />
         </div>
 
         {/* Zeile 2 rechts: Versuchszähler (ausgeblendet bei Keine Wertung) */}
-        {!keineWertung
+        {state !== 'keineWertung'
           ? <Counter value={attempts} onChange={handleAttempts} />
           : <span />
         }
@@ -313,7 +303,7 @@ export function BoulderListPage({ reg }: Props) {
         {keineWertungCount > 0 && (
           <span style={{ fontSize: 13 }}>
             <span style={{ color: '#ff5d6b', fontWeight: 700 }}>{keineWertungCount}</span>
-            <span style={{ color: '#a6b0c3' }}> Keine Wertung</span>
+            <span style={{ color: '#a6b0c3' }}> ✕</span>
           </span>
         )}
         {reg.competition.hallMapAvailable && (
@@ -344,6 +334,10 @@ export function BoulderListPage({ reg }: Props) {
             onSave={handleSave}
           />
         ))}
+      </div>
+
+      <div style={{ padding: '8px 16px 32px', fontSize: 11, color: '#4a5568', textAlign: 'center' }}>
+        ✕ = Keine Wertung (Boulder versucht, kein Zone / Top)
       </div>
     </div>
   )
