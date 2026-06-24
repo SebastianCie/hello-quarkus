@@ -112,7 +112,7 @@ function ScoreTable({ page, data }: { page: Page; data: ScoreboardData }) {
           <th style={{ ...thStyle, textAlign: 'center' }}>Tops</th>
           {showZone && <th style={{ ...thStyle, textAlign: 'center' }}>Zonen</th>}
           {showPoints && <th style={{ ...thStyle, textAlign: 'right' }}>Punkte</th>}
-          {(data.totalRoutes ?? 0) > 0 && <th style={{ ...thStyle, textAlign: 'center' }}>Bewertet</th>}
+          {(data.totalRoutes ?? 0) > 0 && <th style={{ ...thStyle, textAlign: 'center' }}>Absolviert</th>}
           {(data.totalRoutes ?? 0) > 0 && <th style={{ ...thStyle, textAlign: 'center' }}>Status</th>}
         </tr>
       </thead>
