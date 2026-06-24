@@ -337,7 +337,7 @@ export function BoulderListPage({ reg }: Props) {
         </div>
         <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#4a5568' }}>
           <CrossCircleIcon size={12} color="#4a5568" />
-          <span>= Keine Wertung (Boulder versucht, kein Zone / Top)</span>
+          <span>= Keine Wertung (Boulder versucht, keine Zone/Top)</span>
         </div>
       </div>
 
